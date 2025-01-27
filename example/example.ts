@@ -1,4 +1,4 @@
-import { EndpointMapping, EndpointName, Schema } from "../src/net/schema.ts";
+import { Schema, SchemaRequest } from "../src/net/schema.ts";
 import { Socket } from "../src/net/socket.ts";
 
 type ServerSchema = Schema<{
@@ -17,20 +17,22 @@ type AdapterContext = {
   initiatorId: string;
 };
 
-export const mapping = {
-  "chat.messages.*.delete": (adapter, messageId) =>
-    adapter.chat.messages.get(messageId).delete,
+type MyRequest = SchemaRequest<ServerSchema>;
 
-  "chat.forwardMessage": (adapter) => adapter.chat.forwardMessage,
-
-  anotherThing: (adapter) => adapter.anotherThing,
-} satisfies EndpointMapping<ServerSchema, AdapterContext>;
-
-type MyEndpoints = EndpointName<ServerSchema>;
+const req: MyRequest = {
+  chat: {
+    // messages: {
+    //   messageid: {
+    //     delete: [],
+    //   },
+    // },
+    forwardMessage: ["this is my message"],
+  },
+};
 
 class ServerSocket extends Socket<ServerSchema, AdapterContext> {
   constructor() {
-    super(mapping, {
+    super({
       anotherThing(context, a) {
         return a;
       },
