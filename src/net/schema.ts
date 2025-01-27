@@ -1,6 +1,9 @@
 type SchemaCollection<E extends SchemaType> = Array<E>;
 
-type SchemaFunction = (...args: never[]) => unknown;
+// deno-lint-ignore no-explicit-any
+type SchemaFunction<TArgs extends any[] = any[], TResult = unknown> = (
+  ...args: TArgs
+) => TResult;
 
 type AnySchemaField =
   | SchemaType
@@ -23,43 +26,33 @@ type Flatten<T> = T extends SchemaCollection<infer E>
   ? `*.${Flatten<E>}`
   : FlattenObjectKeys<T>;
 
-export type MessageName<T extends Schema = Schema> = Flatten<T>;
+export type EndpointName<T extends Schema = Schema> = Flatten<T>;
 
-type SchemaFieldAdapter<T extends AnySchemaField> = T extends SchemaType
+type SchemaFieldAdapter<
+  T extends AnySchemaField,
+  TContext
+> = T extends SchemaType
   ? {
-      [K in keyof T]: SchemaFieldAdapter<T[K]>;
+      [K in keyof T]: SchemaFieldAdapter<T[K], TContext>;
     }
   : T extends SchemaCollection<infer E>
   ? {
       get(id: string): E;
     }
+  : T extends SchemaFunction<infer TArgs, infer TResult>
+  ? (context: TContext, ...args: TArgs) => TResult
   : T;
 
-export type SchemaAdapter<T extends Schema> = SchemaFieldAdapter<T>;
+export type SchemaAdapter<T extends Schema, TContext> = SchemaFieldAdapter<
+  T,
+  TContext
+>;
 
-type SchemaOfMessageName<T extends MessageName> = T extends MessageName<
-  infer TSchema
->
-  ? TSchema
-  : never;
-
-// export type MessageDefinition<T extends MessageName> =
-//   (typeof transportMessageMapping)[T];
-
-// export type MessageIdentifiers<T extends MessageName> = Parameters<
-//   MessageDefinition<T>
-// > extends [unknown, ...infer MParams]
-//   ? MParams
-//   : never;
-
-// export type Message<T extends MessageName> = ReturnType<MessageDefinition<T>>;
-// export type MessageParameters<T extends MessageName> = Parameters<Message<T>>;
-// export type MessageReturnType<T extends MessageName> = ReturnType<Message<T>>;
-
-export type MessageMapping<TSchema extends Schema> = Record<
-  MessageName<TSchema>,
+export type EndpointMapping<TSchema extends Schema, TContext> = Record<
+  EndpointName<TSchema>,
   (
-    session: SchemaAdapter<TSchema>,
+    session: SchemaAdapter<TSchema, TContext>,
     ...ids: string[]
-  ) => (...args: never) => unknown
+  ) => // deno-lint-ignore no-explicit-any
+  (context: TContext, ...args: any[]) => unknown
 >;

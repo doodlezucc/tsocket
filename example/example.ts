@@ -1,9 +1,9 @@
-import { Configuration } from "../src/net/configuration.ts";
-import { MessageMapping, MessageName, Schema } from "../src/net/schema.ts";
+import { EndpointMapping, EndpointName, Schema } from "../src/net/schema.ts";
+import { Socket } from "../src/net/socket.ts";
 
-type MySchema = Schema<{
+type ServerSchema = Schema<{
   chat: {
-    sendMessage(text: string): void;
+    forwardMessage(text: string): void;
 
     messages: {
       delete(): void;
@@ -13,15 +13,35 @@ type MySchema = Schema<{
   anotherThing(from: number): number;
 }>;
 
+type AdapterContext = {
+  initiatorId: string;
+};
+
 export const mapping = {
   "chat.messages.*.delete": (adapter, messageId) =>
     adapter.chat.messages.get(messageId).delete,
 
-  "chat.sendMessage": (adapter) => adapter.chat.sendMessage,
+  "chat.forwardMessage": (adapter) => adapter.chat.forwardMessage,
 
   anotherThing: (adapter) => adapter.anotherThing,
-} satisfies MessageMapping<MySchema>;
+} satisfies EndpointMapping<ServerSchema, AdapterContext>;
 
-type MyConfiguration = Configuration<MySchema>;
+type MyEndpoints = EndpointName<ServerSchema>;
 
-type MyMessages = MessageName<MySchema>;
+class ServerSocket extends Socket<ServerSchema, AdapterContext> {
+  constructor() {
+    super(mapping, {
+      anotherThing(context, a) {
+        return a;
+      },
+      chat: {
+        forwardMessage(text) {},
+        messages: {
+          get(id) {
+            return { delete() {} };
+          },
+        },
+      },
+    });
+  }
+}
