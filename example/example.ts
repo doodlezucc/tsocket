@@ -1,49 +1,47 @@
-import { Schema, SchemaRequest } from "../src/net/schema.ts";
-import { Socket } from "../src/net/socket.ts";
+import { z } from "zod";
+import {
+  collection,
+  endpoint,
+  schema,
+  SchemaCaller,
+  unchecked,
+} from "../src/net/schema.ts";
 
-type ServerSchema = Schema<{
+const ServerSchema = schema({
   chat: {
-    forwardMessage(text: string): void;
+    forwardMessage: endpoint({
+      accepts: z.object({
+        text: z.string(),
+      }),
+    }),
 
-    messages: {
-      delete(): void;
-    }[];
-  };
-
-  anotherThing(from: number): number;
-}>;
-
-type AdapterContext = {
-  initiatorId: string;
-};
-
-type MyRequest = SchemaRequest<ServerSchema>;
-
-const req: MyRequest = {
-  chat: {
-    // messages: {
-    //   messageid: {
-    //     delete: [],
-    //   },
-    // },
-    forwardMessage: ["this is my message"],
+    messages: collection({
+      delete: endpoint(),
+    }),
   },
-};
 
-class ServerSocket extends Socket<ServerSchema, AdapterContext> {
-  constructor() {
-    super({
-      anotherThing(context, a) {
-        return a;
-      },
-      chat: {
-        forwardMessage(text) {},
-        messages: {
-          get(id) {
-            return { delete() {} };
-          },
-        },
-      },
-    });
-  }
-}
+  anotherThing: endpoint({
+    accepts: z.object({
+      from: z.number(),
+      with: z.array(unchecked<{
+        name: string;
+        description?: string;
+      }>()),
+    }),
+    returns: z.number(),
+  }),
+});
+
+type ServerSchemaType = typeof ServerSchema;
+type ServerSchemaCaller = SchemaCaller<ServerSchemaType>;
+
+const server = {} as ServerSchemaCaller;
+
+server.chat.messages.get("0").delete();
+
+server.anotherThing({
+  with: [
+    { name: "A name", description: "A description" },
+  ],
+  from: 0,
+});

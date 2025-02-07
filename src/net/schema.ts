@@ -1,57 +1,80 @@
-type SchemaCollection<E extends SchemaType> = Array<E>;
+import { ZodType } from "zod";
 
-// deno-lint-ignore no-explicit-any
-type SchemaFunction<TArgs extends any[] = any[], TResult = unknown> = (
-  ...args: TArgs
-) => TResult;
+type SchemaCollection<T extends SchemaScope = SchemaScope> = [T];
 
-type AnySchemaField =
-  | SchemaType
-  | SchemaFunction
-  | SchemaCollection<SchemaType>;
-
-type SchemaType = {
-  [key: string]: AnySchemaField;
+type SchemaEndpoint<
+  TParams extends ZodType = ZodType,
+  TResult extends ZodType = ZodType,
+> = {
+  accepts?: TParams;
+  returns?: TResult;
 };
 
-export type Schema<T extends SchemaType = SchemaType> = T;
+type SchemaField =
+  | SchemaCollection
+  | SchemaEndpoint
+  | SchemaScope;
 
-type SingleKeyObject<T, K = keyof T> = T extends SchemaFunction ? T
-  : T extends SchemaCollection<infer TArr> ? Record<string, TArr>
-  : K extends keyof T ?
-      & {
-        [P in K]: SingleKeyObject<T[K]>;
-      }
-      & {
-        [P in keyof Omit<T, K>]?: never;
-      }
-  : never;
+type SchemaScope = {
+  [key: string]: SchemaField;
+};
 
-type PossibleRequest<T> = T extends (...args: infer TArgs) => unknown
-  ? TArgs extends [Record<string, unknown>] ? TArgs[0]
-  : TArgs
-  : {
-    [K in keyof T]: PossibleRequest<T[K]>;
-  };
+export type Schema = SchemaScope;
 
-export type SchemaRequest<T extends Schema = Schema> = PossibleRequest<
-  SingleKeyObject<T>
->;
+export function schema<T extends Schema>(schema: T) {
+  return schema;
+}
 
-type SchemaFieldAdapter<
-  T extends AnySchemaField,
-  TContext,
-> = T extends SchemaType ? {
-    [K in keyof T]: SchemaFieldAdapter<T[K], TContext>;
-  }
-  : T extends SchemaCollection<infer E> ? {
-      get(id: string): E;
-    }
-  : T extends SchemaFunction<infer TArgs, infer TResult>
-    ? (context: TContext, ...args: TArgs) => TResult
+export function endpoint<
+  TParams extends ZodType,
+  TResult extends ZodType,
+>(
+  endpoint?: SchemaEndpoint<TParams, TResult>,
+): SchemaEndpoint<TParams, TResult> {
+  return endpoint ?? {};
+}
+
+export function collection<T extends SchemaScope>(
+  schema: T,
+): SchemaCollection<T> {
+  return [schema];
+}
+
+// interface UncheckedZodTypeDef extends ZodTypeDef {
+//   unchecked: true;
+// }
+
+// type Unchecked<T> = ZodType<T, UncheckedZodTypeDef>;
+
+const UNCHECKED = {};
+
+export function unchecked<T>(): ZodType<T> {
+  // return { _def: { unchecked: true } } as Unchecked<T>;
+  return UNCHECKED as ZodType<T>;
+}
+
+type IsAny<T> = 0 extends (1 & T) ? true : false;
+
+type ZodOutput<T> = T extends ZodType<infer TOut> ? TOut
+  : T extends object ? { [K in keyof T]: ZodOutput<T[K]> }
   : T;
 
-export type SchemaAdapter<T extends Schema, TContext> = SchemaFieldAdapter<
-  T,
-  TContext
+type ModelFunction<TParams, TResult> = IsAny<TParams> extends true
+  ? () => TResult
+  : (params: TParams) => TResult;
+
+type ModelFunctionFrom<TParams, TResult> = ModelFunction<
+  ZodOutput<TParams>,
+  IsAny<ZodOutput<TResult>> extends true ? void : ZodOutput<TResult>
 >;
+
+export type SchemaCaller<T extends SchemaField> = T extends
+  SchemaCollection<infer E> ? {
+    get(id: string): SchemaCaller<E>;
+  }
+  : T extends SchemaEndpoint<infer TParams, infer TResult>
+    ? ModelFunctionFrom<TParams, TResult>
+  : T extends SchemaScope ? {
+      [K in keyof T]: SchemaCaller<T[K]>;
+    }
+  : never;
