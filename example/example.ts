@@ -1,9 +1,9 @@
 import { z } from "zod";
 import {
   collection,
+  createCaller,
   endpoint,
   schema,
-  SchemaCaller,
   unchecked,
 } from "../src/net/schema.ts";
 
@@ -32,16 +32,25 @@ const ServerSchema = schema({
   }),
 });
 
-type ServerSchemaType = typeof ServerSchema;
-type ServerSchemaCaller = SchemaCaller<ServerSchemaType>;
+const server = createCaller(ServerSchema, {
+  sendRequest(payload, expectResponse) {
+    console.log(expectResponse, payload);
 
-const server = {} as ServerSchemaCaller;
+    if (expectResponse) {
+      return new Promise((resolve) => {
+        resolve(1234);
+      });
+    }
+  },
+});
 
 server.chat.messages.get("0").delete();
 
-server.anotherThing({
+const response = await server.anotherThing({
   with: [
     { name: "A name", description: "A description" },
   ],
   from: 0,
 });
+
+console.log("Response:", response);
