@@ -14,6 +14,13 @@ import {
 } from "./schema.ts";
 import { EndpointPayload } from "./transport.ts";
 
+export interface Parser<TSchema extends Schema, TContext> {
+  readonly schema: TSchema;
+  readonly adapter: SchemaAdapter<TSchema, TContext>;
+
+  callEndpoint(payload: EndpointPayload, context: TContext): unknown;
+}
+
 interface RecursiveContext<TContext> {
   adapterContext: TContext;
 
@@ -24,7 +31,8 @@ interface RecursiveContext<TContext> {
   scopeInAdapter: AdaptedScope<TContext>;
 }
 
-export abstract class Socket<TSchema extends Schema, TContext> {
+class ParserImplementation<TSchema extends Schema, TContext>
+  implements Parser<TSchema, TContext> {
   constructor(
     readonly schema: TSchema,
     readonly adapter: SchemaAdapter<TSchema, TContext>,
@@ -112,4 +120,11 @@ export abstract class Socket<TSchema extends Schema, TContext> {
 
     return endpointInAdapter(context);
   }
+}
+
+export function createParser<TSchema extends Schema, TContext>(
+  schema: TSchema,
+  adapter: SchemaAdapter<TSchema, TContext>,
+): Parser<TSchema, TContext> {
+  return new ParserImplementation(schema, adapter);
 }

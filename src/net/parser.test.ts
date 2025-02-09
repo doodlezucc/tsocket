@@ -2,10 +2,11 @@ import { assertSpyCall, assertSpyCalls, stub } from "@std/testing/mock";
 
 import { z } from "zod";
 import { SchemaAdapter } from "./adapter.ts";
+import { createParser } from "./parser.ts";
 import { collection, endpoint, schema } from "./schema.ts";
-import { Socket } from "./socket.ts";
 
-const ServerSchema = schema({
+type TestSchema = typeof TestSchema;
+const TestSchema = schema({
   chat: {
     create: endpoint({
       accepts: z.object({ text: z.string() }),
@@ -17,20 +18,12 @@ const ServerSchema = schema({
   },
 });
 
-type ServerSchema = typeof ServerSchema;
-
 type AdapterContext = {
   initiatorId: string;
 };
 
-class ExampleSocket extends Socket<ServerSchema, AdapterContext> {
-  constructor(adapter: SchemaAdapter<ServerSchema, AdapterContext>) {
-    super(ServerSchema, adapter);
-  }
-}
-
 Deno.test("Request parsing", () => {
-  const adapter: SchemaAdapter<ServerSchema, AdapterContext> = {
+  const adapter: SchemaAdapter<TestSchema, AdapterContext> = {
     chat: {
       create({ text }) {
         console.log(`Creating a message with content "${text}"`);
@@ -50,14 +43,14 @@ Deno.test("Request parsing", () => {
     },
   };
 
-  const socket = new ExampleSocket(adapter);
+  const parser = createParser(TestSchema, adapter);
   using createMessageStub = stub(adapter.chat, "create");
 
   const adapterContext: AdapterContext = {
     initiatorId: "initiator",
   };
 
-  socket.callEndpoint({
+  parser.callEndpoint({
     path: ["chat", "create"],
     params: {
       text: "This is a new message",
