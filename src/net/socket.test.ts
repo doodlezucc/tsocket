@@ -1,16 +1,23 @@
 import { assertSpyCall, assertSpyCalls, stub } from "@std/testing/mock";
 
-import { Schema, SchemaAdapter } from "./schema.ts";
+import { z } from "zod";
+import { SchemaAdapter } from "./adapter.ts";
+import { collection, endpoint, schema } from "./schema.ts";
 import { Socket } from "./socket.ts";
 
-type ServerSchema = Schema<{
+const ServerSchema = schema({
   chat: {
-    create(options: { text: string }): void;
-    messages: {
-      delete(): void;
-    }[];
-  };
-}>;
+    create: endpoint({
+      accepts: z.object({ text: z.string() }),
+    }),
+
+    messages: collection({
+      delete: endpoint(),
+    }),
+  },
+});
+
+type ServerSchema = typeof ServerSchema;
 
 type AdapterContext = {
   initiatorId: string;
@@ -18,14 +25,14 @@ type AdapterContext = {
 
 class ExampleSocket extends Socket<ServerSchema, AdapterContext> {
   constructor(adapter: SchemaAdapter<ServerSchema, AdapterContext>) {
-    super(adapter);
+    super(ServerSchema, adapter);
   }
 }
 
 Deno.test("Request parsing", () => {
   const adapter: SchemaAdapter<ServerSchema, AdapterContext> = {
     chat: {
-      create(_context, { text }) {
+      create({ text }) {
         console.log(`Creating a message with content "${text}"`);
       },
 
@@ -50,18 +57,15 @@ Deno.test("Request parsing", () => {
     initiatorId: "initiator",
   };
 
-  socket.handleIncomingMessage(adapterContext, {
-    request: {
-      chat: {
-        create: {
-          text: "This is a new message",
-        },
-      },
+  socket.callEndpoint({
+    path: ["chat", "create"],
+    params: {
+      text: "This is a new message",
     },
-  });
+  }, adapterContext);
 
   assertSpyCalls(createMessageStub, 1);
   assertSpyCall(createMessageStub, 0, {
-    args: [adapterContext, { text: "This is a new message" }],
+    args: [{ text: "This is a new message" }, adapterContext],
   });
 });

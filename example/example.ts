@@ -5,7 +5,7 @@ import {
   endpoint,
   schema,
   unchecked,
-} from "../src/net/schema.ts";
+} from "../src/index.ts";
 
 const ServerSchema = schema({
   chat: {
