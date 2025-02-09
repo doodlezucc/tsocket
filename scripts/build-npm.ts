@@ -1,4 +1,7 @@
 import { build, emptyDir } from "@deno/dnt";
+import denoPackage from "../deno.json" with { type: "json" };
+
+const releaseVersion = denoPackage.version;
 
 await emptyDir("./npm");
 
@@ -15,7 +18,7 @@ await build({
   package: {
     // package.json properties
     name: "tsocket",
-    version: Deno.args[0],
+    version: releaseVersion,
     description:
       "A type-safe, versatile implementation of remote procedure calls (RPC).",
     license: "MIT",
