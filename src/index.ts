@@ -1,3 +1,5 @@
+export { createCaller } from "./net/caller.ts";
+export type { SchemaCaller, SendRequestFunction } from "./net/caller.ts";
 export { collection, endpoint, schema, unchecked } from "./net/schema.ts";
 export type {
   Schema,
@@ -7,5 +9,4 @@ export type {
   SchemaScope,
 } from "./net/schema.ts";
 
-export { createCaller } from "./net/caller.ts";
-export type { SchemaCaller, SendRequestFunction } from "./net/caller.ts";
+export { z } from "zod";

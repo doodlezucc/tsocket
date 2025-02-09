@@ -1,4 +1,9 @@
-import { SchemaAdapter } from "./adapter.ts";
+import {
+  AdaptedCollection,
+  AdaptedScope,
+  AnyAdaptedEndpoint,
+  SchemaAdapter,
+} from "./adapter.ts";
 import {
   isEndpoint,
   Schema,
@@ -16,17 +21,8 @@ interface RecursiveContext<TContext> {
   remainingPath: (string | number)[];
 
   scopeInSchema: SchemaScope;
-  scopeInAdapter: Record<string, unknown>;
+  scopeInAdapter: AdaptedScope<TContext>;
 }
-
-type EndpointAdapterWithParams<TContext> = (
-  params: unknown,
-  context: TContext,
-) => unknown;
-type EndpointAdapterWithoutParams<TContext> = (context: TContext) => unknown;
-type EndpointAdapter<TContext> =
-  & EndpointAdapterWithParams<TContext>
-  & EndpointAdapterWithoutParams<TContext>;
 
 export abstract class Socket<TSchema extends Schema, TContext> {
   constructor(
@@ -56,28 +52,16 @@ export abstract class Socket<TSchema extends Schema, TContext> {
     }
 
     if (Array.isArray(schemaField)) {
-      const elementSchema = schemaField[0];
-
-      const collectionAdapter = nextScopeInAdapter as SchemaAdapter<
-        SchemaCollection,
-        TContext
-      >;
-
-      const collectionElementId = remainingPath[1];
-      const retrievedElement = collectionAdapter.get(collectionElementId);
-
-      return this.parseAndCall({
-        ...context,
-        remainingPath: remainingPath.slice(2),
-        scopeInAdapter: retrievedElement,
-        scopeInSchema: elementSchema,
-      });
+      const collection = nextScopeInAdapter as AdaptedCollection<TContext>;
+      return this.parseAndCallCollection(schemaField, collection, context);
     }
 
     if (isEndpoint(schemaField)) {
+      const endpoint = nextScopeInAdapter as AnyAdaptedEndpoint<TContext>;
+
       return this.callParsedEndpoint(
         schemaField,
-        nextScopeInAdapter as EndpointAdapter<TContext>,
+        endpoint,
         payload,
         context.adapterContext,
       );
@@ -87,14 +71,32 @@ export abstract class Socket<TSchema extends Schema, TContext> {
     return this.parseAndCall({
       ...context,
       remainingPath: remainingPath.slice(1),
-      scopeInAdapter: nextScopeInAdapter as Record<string, unknown>,
+      scopeInAdapter: nextScopeInAdapter as AdaptedScope<TContext>,
       scopeInSchema: schemaField,
+    });
+  }
+
+  private parseAndCallCollection(
+    collectionInSchema: SchemaCollection,
+    collectionInAdapter: AdaptedCollection<TContext>,
+    context: RecursiveContext<TContext>,
+  ) {
+    const elementSchema = collectionInSchema[0];
+
+    const collectionElementId = context.remainingPath[1];
+    const retrievedElement = collectionInAdapter.get(collectionElementId);
+
+    return this.parseAndCall({
+      ...context,
+      remainingPath: context.remainingPath.slice(2),
+      scopeInAdapter: retrievedElement,
+      scopeInSchema: elementSchema,
     });
   }
 
   private callParsedEndpoint(
     endpointInSchema: SchemaEndpoint,
-    endpointInAdapter: EndpointAdapter<TContext>,
+    endpointInAdapter: AnyAdaptedEndpoint<TContext>,
     payload: EndpointPayload,
     context: TContext,
   ) {

@@ -1,10 +1,10 @@
-import { z } from "zod";
 import {
   collection,
   createCaller,
   endpoint,
   schema,
   unchecked,
+  z,
 } from "../src/index.ts";
 
 const ServerSchema = schema({
