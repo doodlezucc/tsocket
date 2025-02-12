@@ -8,6 +8,7 @@
     "jsr:@std/assert@0.226": "0.226.0",
     "jsr:@std/assert@1": "1.0.11",
     "jsr:@std/assert@^1.0.10": "1.0.11",
+    "jsr:@std/assert@^1.0.11": "1.0.11",
     "jsr:@std/bytes@0.223": "0.223.0",
     "jsr:@std/data-structures@^1.0.6": "1.0.6",
     "jsr:@std/fmt@0.223": "0.223.0",
@@ -157,7 +158,7 @@
   "workspace": {
     "dependencies": [
       "jsr:@deno/dnt@~0.41.3",
-      "jsr:@std/assert@1",
+      "jsr:@std/assert@^1.0.11",
       "jsr:@std/testing@^1.0.9",
       "npm:zod@^3.24.1"
     ]

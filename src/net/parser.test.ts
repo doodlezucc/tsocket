@@ -18,9 +18,9 @@ const TestSchema = schema({
   },
 });
 
-type AdapterContext = {
+interface AdapterContext {
   initiatorId: string;
-};
+}
 
 Deno.test("Request parsing", () => {
   const adapter: SchemaAdapter<TestSchema, AdapterContext> = {

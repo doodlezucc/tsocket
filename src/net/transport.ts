@@ -18,3 +18,30 @@ export interface ResponseMessage {
 }
 
 export type Message = DispatchMessage | RequestMessage | ResponseMessage;
+
+export interface Channel<TEncoding> {
+  send(data: TEncoding): void;
+  subscribe(onNewData: (data: TEncoding) => void): StreamSubscription;
+}
+
+export interface StreamSubscription {
+  unsubscribe(): void;
+}
+
+export class WebSocketChannel implements Channel<string> {
+  constructor(readonly socket: WebSocket) {}
+
+  send(data: string) {
+    this.socket.send(data);
+  }
+
+  subscribe(onNewData: (data: string) => void): StreamSubscription {
+    const listener = (ev: MessageEvent) => onNewData(ev.data);
+
+    this.socket.addEventListener("message", listener);
+
+    return {
+      unsubscribe: () => this.socket.removeEventListener("message", listener),
+    };
+  }
+}
