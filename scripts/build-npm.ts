@@ -19,12 +19,11 @@ await build({
   ],
   outDir: "./npm",
   shims: {
-    deno: true,
-    webSocket: true,
+    deno: "dev",
   },
   importMap: "deno.json",
   compilerOptions: {
-    lib: ["ESNext"],
+    lib: ["ESNext", "DOM"],
   },
   package: {
     // package.json properties
