@@ -1,11 +1,12 @@
+import { transportWebSocket } from "../src/client/transport-websocket.ts";
 import {
   collection,
-  createCaller,
   endpoint,
   schema,
   unchecked,
   z,
-} from "../src/index.ts";
+} from "../src/net/index.ts";
+import { createSocket } from "../src/net/socket.ts";
 
 const ServerSchema = schema({
   chat: {
@@ -32,21 +33,16 @@ const ServerSchema = schema({
   }),
 });
 
-const server = createCaller(ServerSchema, {
-  sendRequest(payload, expectResponse) {
-    console.log(expectResponse, payload);
-
-    if (expectResponse) {
-      return new Promise((resolve) => {
-        resolve(1234);
-      });
-    }
+const socket = createSocket({
+  transport: transportWebSocket(new WebSocket("")),
+  partnerProcessing: {
+    schema: ServerSchema,
   },
 });
 
-server.chat.messages.get("0").delete();
+socket.partner.chat.messages.get("0").delete();
 
-const response = await server.anotherThing({
+const response = await socket.partner.anotherThing({
   with: [
     { name: "A name", description: "A description" },
   ],

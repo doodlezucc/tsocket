@@ -1,11 +1,15 @@
 {
   "version": "0.1.0",
   "tasks": {
-    "build": "deno run -A scripts/build-npm.ts",
+    "build": "deno run -A ./scripts/build-npm.ts",
     "release": {
       "command": "npm publish ./npm",
       "dependencies": ["build"]
     }
+  },
+  "exports": {
+    ".": "./src/net/index.ts",
+    "./client": "./src/client/index.ts"
   },
   "imports": {
     "@deno/dnt": "jsr:@deno/dnt@^0.41.3",

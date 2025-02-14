@@ -1,11 +1,11 @@
 import { Message } from "./transport.ts";
 
-export interface Codec<T = unknown> {
+export interface MessageCodec<T = unknown> {
   encode(message: Message): T;
   decode(message: T): Message;
 }
 
-export const JsonCodec: Codec<string> = {
+export const JsonCodec: MessageCodec<string> = {
   encode(message: Message): string {
     return JSON.stringify(message);
   },

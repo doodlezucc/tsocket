@@ -1,41 +1,49 @@
-import { Codec } from "./codec.ts";
+import { createCaller } from "./caller.ts";
+import { Schema } from "./schema.ts";
 import {
-  Channel,
+  ChannelTransport,
   EndpointPayload,
   ResponseMessage,
   StreamSubscription,
 } from "./transport.ts";
 
-export interface Sender {
-  dispatch(endpoint: EndpointPayload): void;
-  request<T>(endpoint: EndpointPayload): Promise<T>;
-}
+export abstract class Sender {
+  abstract dispatch(endpoint: EndpointPayload): void;
+  abstract request<T>(endpoint: EndpointPayload): Promise<T>;
 
-// export interface Receiver {
-//   processIncomingMessage(message: DispatchMessage): void;
-//   processIncomingMessage(message: RequestMessage): Promise<ResponseMessage>;
-// }
+  createCaller<T extends Schema>(partnerSchema: T) {
+    return createCaller(partnerSchema, {
+      sendRequest: (payload, expectResponse) => {
+        if (expectResponse) {
+          return this.request(payload);
+        } else {
+          this.dispatch(payload);
+        }
+      },
+    });
+  }
+}
 
 type ResponseHandler = (result: unknown) => void;
 
-class SenderImplementation<TEncoding> implements Sender {
+interface ChannelSenderOptions {
+  channel: ChannelTransport;
+}
+
+export class ChannelSender extends Sender {
+  readonly channel: ChannelTransport;
+
   private readonly channelSubscription: StreamSubscription;
   private readonly responseHandlerMap = new Map<number, ResponseHandler>();
   private sequenceNumber: number = 0;
 
-  constructor(
-    readonly channel: Channel<TEncoding>,
-    readonly codec: Codec<TEncoding>,
-  ) {
-    this.channelSubscription = channel.subscribe((data) => {
-      try {
-        const message = codec.decode(data);
+  constructor(options: ChannelSenderOptions) {
+    super();
+    this.channel = options.channel;
 
-        if ("result" in message) {
-          this.handleResponse(message);
-        }
-      } catch (err) {
-        return console.error("Failed to decode response message:", err);
+    this.channelSubscription = this.channel.subscribe((message) => {
+      if ("result" in message) {
+        this.handleResponse(message);
       }
     });
   }
@@ -63,31 +71,20 @@ class SenderImplementation<TEncoding> implements Sender {
         resolve(result as T);
       });
 
-      this.channel.send(this.codec.encode({
+      this.channel.send({
         id: requestSequenceNumber,
         payload: endpoint,
-      }));
+      });
     });
   }
 
   dispatch(endpoint: EndpointPayload): void {
-    this.channel.send(this.codec.encode({
+    this.channel.send({
       payload: endpoint,
-    }));
+    });
   }
 
   dispose(): void {
     this.channelSubscription.unsubscribe();
   }
-}
-
-interface SenderOptions<TEncoding> {
-  channel: Channel<TEncoding>;
-  codec: Codec<TEncoding>;
-}
-
-export function createSender<TEncoding>(
-  options: SenderOptions<TEncoding>,
-): Sender {
-  return new SenderImplementation(options.channel, options.codec);
 }

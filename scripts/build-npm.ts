@@ -6,10 +6,21 @@ const releaseVersion = denoPackage.version;
 await emptyDir("./npm");
 
 await build({
-  entryPoints: ["./src/index.ts"],
+  entryPoints: [
+    "./src/net/index.ts",
+    {
+      name: "./client",
+      path: "./src/client/index.ts",
+    },
+    // {
+    //   name: "./server",
+    //   path: "./src/server/index.ts",
+    // },
+  ],
   outDir: "./npm",
   shims: {
     deno: true,
+    webSocket: true,
   },
   importMap: "deno.json",
   compilerOptions: {
