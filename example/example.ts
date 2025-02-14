@@ -1,12 +1,12 @@
-import { transportWebSocket } from "../src/client/transport-websocket.ts";
+import { transportWebSocket } from "../src/client/index.ts";
 import {
   collection,
+  createSocket,
   endpoint,
   schema,
   unchecked,
   z,
 } from "../src/net/index.ts";
-import { createSocket } from "../src/net/socket.ts";
 
 const ServerSchema = schema({
   chat: {

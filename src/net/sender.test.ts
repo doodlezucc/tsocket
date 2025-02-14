@@ -1,7 +1,8 @@
 import { assertEquals } from "@std/assert/equals";
 import { assertRejects } from "@std/assert/rejects";
+import { StreamSubscription } from "../util.ts";
 import { ChannelSender } from "./sender.ts";
-import { ChannelTransport, Message, StreamSubscription } from "./transport.ts";
+import { ChannelTransport, Message } from "./transport.ts";
 
 type ChannelListener = (message: Message) => void;
 

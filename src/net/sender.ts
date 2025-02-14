@@ -1,10 +1,10 @@
+import { StreamSubscription } from "../util.ts";
 import { createCaller } from "./caller.ts";
 import { Schema } from "./schema.ts";
 import {
   ChannelTransport,
   EndpointPayload,
   ResponseMessage,
-  StreamSubscription,
 } from "./transport.ts";
 
 export abstract class Sender {

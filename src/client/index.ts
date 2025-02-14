@@ -1,1 +1,2 @@
-export { WebSocketChannel } from "./transport-websocket.ts";
+export { transportWebSocket, WebSocketChannel } from "./transport-websocket.ts";
+
