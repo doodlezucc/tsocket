@@ -2,24 +2,51 @@ import { JsonCodec, MessageCodec } from "../net/codec.ts";
 import { ChannelTransport, Message } from "../net/transport.ts";
 import { StreamSubscription } from "../util.ts";
 
-interface WebSocketMessageEvent {
-  // deno-lint-ignore no-explicit-any
-  data: any;
-}
+type WebSocketEncoding = string | ArrayBufferLike | Blob | ArrayBufferView;
 
-export class WebSocketChannel implements ChannelTransport {
+export class WebSocketChannel<TEncoding extends WebSocketEncoding = string>
+  implements ChannelTransport {
+  private outgoingQueue: TEncoding[] = [];
+  private isOpen: boolean;
+
   constructor(
     readonly socket: WebSocket,
-    readonly codec: MessageCodec<string>,
-  ) {}
+    readonly codec: MessageCodec<TEncoding>,
+  ) {
+    if (socket.readyState === WebSocket.OPEN) {
+      this.isOpen = true;
+    } else {
+      this.isOpen = false;
+      socket.addEventListener("open", () => this.onOpen());
+    }
 
-  send(data: Message) {
-    this.socket.send(this.codec.encode(data));
+    socket.addEventListener("close", () => {
+      this.isOpen = false;
+    });
+  }
+
+  private onOpen() {
+    for (const data of this.outgoingQueue) {
+      this.socket.send(data);
+    }
+
+    this.outgoingQueue = [];
+    this.isOpen = true;
+  }
+
+  send(message: Message) {
+    const data = this.codec.encode(message);
+
+    if (this.isOpen) {
+      this.socket.send(data);
+    } else {
+      this.outgoingQueue.push(data);
+    }
   }
 
   subscribe(onReceive: (message: Message) => void): StreamSubscription {
-    const listener = (ev: WebSocketMessageEvent) => {
-      const rawData = ev.data;
+    const listener = (ev: MessageEvent) => {
+      const rawData = ev.data as TEncoding;
       const message = this.codec.decode(rawData);
 
       onReceive(message);
