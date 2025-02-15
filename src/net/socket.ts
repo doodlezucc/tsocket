@@ -1,4 +1,3 @@
-import { Disposable } from "../util.ts";
 import { createCaller, SchemaCaller } from "./caller.ts";
 import { Parser } from "./parser.ts";
 import { ChannelReceiver } from "./receiver.ts";
@@ -67,6 +66,16 @@ type Options =
   | ChannelOptionsPartnerOnly<Schema>
   | ChannelOptionsBoth<Schema>;
 
+export type RequestSocket<TSchema extends Schema> = SocketWithPartner<TSchema>;
+
+export interface LocalChannelSocket {
+  dispose(): void;
+}
+
+export type ChannelSocket<TSchema extends Schema> =
+  & LocalChannelSocket
+  & SocketWithPartner<TSchema>;
+
 function hasRequestTransport(
   options: HasRequestTransport | HasChannelTransport,
 ): options is HasRequestTransport {
@@ -111,38 +120,39 @@ function createChannelSocket(
     if (hasLocalProcessing(options)) {
       // Channel transport with LOCAL and PARTNER processing
       const receiver = createChannelReceiver(options);
-      return <Disposable & SocketWithPartner> {
+      return {
         partner: partnerCaller,
         dispose() {
           sender.dispose();
           receiver.dispose();
         },
-      };
+      } as ChannelSocket<Schema>;
     } else {
       // Channel transport with only PARTNER processing
-      return <Disposable & SocketWithPartner> {
+      return {
         partner: partnerCaller,
         dispose() {
           sender.dispose();
         },
-      };
+      } as ChannelSocket<Schema>;
     }
   } else {
     // Channel transport with only LOCAL processing
     const receiver = createChannelReceiver(options);
-    return <Disposable> {
+    return {
       dispose() {
         receiver.dispose();
       },
-    };
+    } as LocalChannelSocket;
   }
 }
 
-type GetReturnType<T extends Options> =
-  & (T extends HasPartnerProcessing<infer TPartnerSchema>
-    ? SocketWithPartner<TPartnerSchema>
-    : unknown)
-  & (T extends HasChannelTransport ? Disposable : unknown);
+type GetReturnType<T extends Options> = T extends RequestOptions<infer TSchema>
+  ? RequestSocket<TSchema>
+  : T extends ChannelOptionsBoth<infer TSchema> ? ChannelSocket<TSchema>
+  : T extends ChannelOptionsPartnerOnly<infer TSchema> ? ChannelSocket<TSchema>
+  : T extends ChannelOptionsLocalOnly ? LocalChannelSocket
+  : never;
 
 export function createSocket<T extends Options>(
   options: T,

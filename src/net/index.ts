@@ -1,9 +1,4 @@
-export type {
-  Disposable,
-  IsAny,
-  StreamSubscription,
-  ZodOutput,
-} from "../util.ts";
+export type { StreamSubscription } from "../util.ts";
 
 export type { SchemaAdapter } from "./adapter.ts";
 export { createCaller } from "./caller.ts";
@@ -24,11 +19,17 @@ export { ChannelSender } from "./sender.ts";
 export type { Sender } from "./sender.ts";
 export { createSocket } from "./socket.ts";
 export type {
+  ChannelSocket,
+  LocalChannelSocket,
+  RequestSocket,
+} from "./socket.ts";
+export type {
   ChannelTransport,
   DispatchMessage,
   EndpointPayload,
   Message,
   RequestMessage,
+  RequestTransport,
   ResponseMessage,
 } from "./transport.ts";
 

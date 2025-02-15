@@ -7,7 +7,3 @@ export type ZodOutput<T> = T extends ZodType<infer TOut> ? TOut : never;
 export interface StreamSubscription {
   unsubscribe(): void;
 }
-
-export interface Disposable {
-  dispose(): void;
-}

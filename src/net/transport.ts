@@ -32,5 +32,3 @@ export interface RequestTransport {
     expectResponse: boolean,
   ): void | Promise<unknown>;
 }
-
-export type Transport = ChannelTransport | RequestTransport;
