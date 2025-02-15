@@ -1,6 +1,5 @@
 import { ZodType } from "zod";
 import { IsAny, ZodOutput } from "../util.ts";
-import { CallerFunctionResult } from "./caller.ts";
 import {
   SchemaCollection,
   SchemaEndpoint,
@@ -17,12 +16,12 @@ export interface AdaptedCollection<
 
 export type ParameterlessAdaptedEndpoint<TContext, TResult> = (
   context: TContext,
-) => TResult;
+) => TResult | Promise<TResult>;
 
 export type ParameterizedAdaptedEndpoint<TContext, TParams, TResult> = (
   params: TParams,
   context: TContext,
-) => TResult;
+) => TResult | Promise<TResult>;
 
 export type AnyAdaptedEndpoint<TContext, TParams = unknown, TResult = unknown> =
   & ParameterlessAdaptedEndpoint<TContext, TResult>
@@ -32,13 +31,16 @@ type AdaptedEndpoint<TParams, TResult, TContext> = IsAny<TParams> extends true
   ? ParameterlessAdaptedEndpoint<TContext, TResult>
   : ParameterizedAdaptedEndpoint<TContext, TParams, TResult>;
 
+type SyncFunctionResult<TResult> = IsAny<ZodOutput<TResult>> extends true ? void
+  : ZodOutput<TResult>;
+
 type UnzodAdaptedEndpoint<
   TParams extends ZodType,
   TResult extends ZodType,
   TContext,
 > = AdaptedEndpoint<
   ZodOutput<TParams>,
-  CallerFunctionResult<TResult>,
+  SyncFunctionResult<TResult>,
   TContext
 >;
 
@@ -46,7 +48,7 @@ export type AdaptedScope<TContext, T extends SchemaScope = SchemaScope> = {
   [K in keyof T]: SchemaAdapter<T[K], TContext>;
 };
 
-export type SchemaAdapter<T extends SchemaField, TContext> = T extends
+export type SchemaAdapter<T extends SchemaField, TContext = unknown> = T extends
   SchemaCollection<infer E> ? AdaptedCollection<TContext, E>
   : T extends SchemaEndpoint<infer TParams, infer TResult>
     ? UnzodAdaptedEndpoint<TParams, TResult, TContext>

@@ -17,8 +17,9 @@ import { EndpointPayload } from "./transport.ts";
 export interface Parser<TSchema extends Schema, TContext> {
   readonly schema: TSchema;
   readonly adapter: SchemaAdapter<TSchema, TContext>;
+  readonly composeContext?: () => TContext;
 
-  callEndpoint(payload: EndpointPayload, context: TContext): unknown;
+  callEndpoint(payload: EndpointPayload, context?: TContext): unknown;
 }
 
 interface RecursiveContext<TContext> {
@@ -36,11 +37,12 @@ class ParserImplementation<TSchema extends Schema, TContext>
   constructor(
     readonly schema: TSchema,
     readonly adapter: SchemaAdapter<TSchema, TContext>,
+    readonly composeContext?: () => TContext,
   ) {}
 
-  callEndpoint(payload: EndpointPayload, context: TContext) {
+  callEndpoint(payload: EndpointPayload, context?: TContext) {
     return this.parseAndCall({
-      adapterContext: context,
+      adapterContext: context ?? this.composeContext?.() as TContext,
       payload,
       remainingPath: payload.path,
       scopeInAdapter: this.adapter,
@@ -125,6 +127,40 @@ class ParserImplementation<TSchema extends Schema, TContext>
 export function createParser<TSchema extends Schema, TContext>(
   schema: TSchema,
   adapter: SchemaAdapter<TSchema, TContext>,
+): Parser<TSchema, TContext>;
+
+export function createParser<TSchema extends Schema, TContext>(
+  schema: TSchema,
+  context: TContext | (() => TContext),
+  adapter: SchemaAdapter<TSchema, TContext>,
+): Parser<TSchema, TContext>;
+
+export function createParser<TSchema extends Schema, TContext>(
+  schema: TSchema,
+  adapterOrContext:
+    | SchemaAdapter<TSchema, TContext>
+    | TContext
+    | (() => TContext),
+  adapter?: SchemaAdapter<TSchema, TContext>,
 ): Parser<TSchema, TContext> {
-  return new ParserImplementation(schema, adapter);
+  if (adapter) {
+    if (typeof adapterOrContext === "function") {
+      return new ParserImplementation(
+        schema,
+        adapter,
+        adapterOrContext as (() => TContext),
+      );
+    } else {
+      return new ParserImplementation(
+        schema,
+        adapter,
+        () => adapterOrContext as TContext,
+      );
+    }
+  }
+
+  return new ParserImplementation(
+    schema,
+    adapterOrContext as SchemaAdapter<TSchema, TContext>,
+  );
 }

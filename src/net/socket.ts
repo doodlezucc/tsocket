@@ -1,16 +1,13 @@
 import { Disposable } from "../util.ts";
-import { SchemaAdapter } from "./adapter.ts";
 import { createCaller, SchemaCaller } from "./caller.ts";
-import { createParser } from "./parser.ts";
+import { Parser } from "./parser.ts";
 import { ChannelReceiver } from "./receiver.ts";
 import { Schema } from "./schema.ts";
 import { ChannelSender } from "./sender.ts";
 import { ChannelTransport, RequestTransport } from "./transport.ts";
 
 type LocalOptions<TSchema extends Schema, TContext> = {
-  schema: TSchema;
-  adapter: SchemaAdapter<TSchema, TContext>;
-  composeContext: () => TContext;
+  parser: Parser<TSchema, TContext>;
 };
 
 interface PartnerOptions<TSchema extends Schema> {
@@ -23,7 +20,8 @@ interface HasPartnerProcessing<TPartnerSchema extends Schema = Schema> {
 
 interface HasLocalProcessing<
   TSchema extends Schema = Schema,
-  TContext = unknown,
+  // deno-lint-ignore no-explicit-any
+  TContext = any,
 > {
   localProcessing: LocalOptions<TSchema, TContext>;
 }
@@ -52,15 +50,15 @@ type RequestOptions<T extends Schema> =
     localProcessing?: never;
   };
 
-type ChannelOptionsPartnerOnly<T extends Schema> =
+type ChannelOptionsPartnerOnly<TPartnerSchema extends Schema> =
   & HasChannelTransport
-  & HasPartnerProcessing<T>;
+  & HasPartnerProcessing<TPartnerSchema>;
 
 type ChannelOptionsLocalOnly = HasChannelTransport & HasLocalProcessing;
 
-type ChannelOptionsBoth<T extends Schema> =
+type ChannelOptionsBoth<TPartnerSchema extends Schema> =
   & HasChannelTransport
-  & HasPartnerProcessing<T>
+  & HasPartnerProcessing<TPartnerSchema>
   & HasLocalProcessing;
 
 type Options =
@@ -78,25 +76,19 @@ function hasRequestTransport(
 function hasPartnerProcessing(
   options: HasLocalOrPartnerProcessing,
 ): options is HasPartnerProcessing {
-  return "partner" in options;
+  return "partnerProcessing" in options;
 }
 
 function hasLocalProcessing(
   options: HasLocalOrPartnerProcessing,
 ): options is HasLocalProcessing {
-  return "local" in options;
+  return "localProcessing" in options;
 }
 
 function createChannelReceiver(
   options: HasChannelTransport & HasLocalProcessing,
 ) {
-  const { schema, adapter, composeContext } = options.localProcessing;
-
-  return new ChannelReceiver(
-    options.transport,
-    createParser(schema, adapter),
-    composeContext,
-  );
+  return new ChannelReceiver(options.transport, options.localProcessing.parser);
 }
 
 function createRequestSocket<TPartnerSchema extends Schema>(

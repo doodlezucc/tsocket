@@ -13,18 +13,17 @@ export class ChannelReceiver<TContext> {
   constructor(
     readonly channel: ChannelTransport,
     readonly parser: Parser<Schema, TContext>,
-    readonly composeContext: () => TContext,
   ) {
     this.channelSubscription = channel.subscribe((message) => {
       if ("payload" in message) {
-        this.processEndpointCall(message, composeContext());
+        this.processEndpointCall(message);
       }
     });
   }
 
   async processEndpointCall(
     message: DispatchMessage | RequestMessage,
-    context: TContext,
+    context?: TContext,
   ) {
     let result = this.parser.callEndpoint(message.payload, context);
 
