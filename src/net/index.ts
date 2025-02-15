@@ -23,9 +23,12 @@ export type {
   LocalChannelSocket,
   RequestSocket,
 } from "./socket.ts";
+export { transportCustomChannel } from "./transport.ts";
 export type {
   ChannelTransport,
   DispatchMessage,
+  EncodedChannel,
+  EncodedChannelTransport,
   EndpointPayload,
   Message,
   RequestMessage,
