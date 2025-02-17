@@ -12,16 +12,22 @@ await build({
       name: "./client",
       path: "./src/client/index.ts",
     },
-    // {
-    //   name: "./server",
-    //   path: "./src/server/index.ts",
-    // },
   ],
   outDir: "./npm",
   shims: {
     deno: "dev",
   },
   importMap: "deno.json",
+  mappings: {
+    // "npm:zod" would be better, but currently doesn't produce a
+    // peer dependency in dnt's generated "package.json".
+    // https://github.com/denoland/dnt/issues/433
+    "https://esm.sh/zod@^3.24.1": {
+      name: "zod",
+      version: "^3.24.1",
+      peerDependency: true,
+    },
+  },
   compilerOptions: {
     lib: ["ESNext", "DOM"],
   },

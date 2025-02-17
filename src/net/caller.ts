@@ -1,5 +1,5 @@
-import { ZodType } from "zod";
-import { IsAny, ZodOutput } from "../util.ts";
+import { z, ZodType } from "zod";
+import { IsAny } from "../util.ts";
 import {
   isEndpoint,
   Schema,
@@ -14,14 +14,15 @@ type CallerFunction<TParams, TResult> = IsAny<TParams> extends true
   ? () => TResult
   : (params: TParams) => TResult;
 
-export type CallerFunctionResult<TResult> = IsAny<ZodOutput<TResult>> extends
-  true ? void
-  : Promise<ZodOutput<TResult>>;
+type CallerFunctionResult<TResult extends ZodType> =
+  IsAny<z.infer<TResult>> extends true ? void
+    : Promise<z.infer<TResult>>;
 
-type CallerFunctionFrom<TParams, TResult> = CallerFunction<
-  ZodOutput<TParams>,
-  CallerFunctionResult<TResult>
->;
+type CallerFunctionFrom<TParams extends ZodType, TResult extends ZodType> =
+  CallerFunction<
+    z.infer<TParams>,
+    CallerFunctionResult<TResult>
+  >;
 
 interface SchemaCollectionCaller<E extends SchemaScope> {
   get(id: string | number): SchemaCaller<E>;

@@ -1,5 +1,5 @@
-import { ZodType } from "zod";
-import { IsAny, ZodOutput } from "../util.ts";
+import { z, ZodType } from "zod";
+import { IsAny } from "../util.ts";
 import {
   SchemaCollection,
   SchemaEndpoint,
@@ -31,15 +31,16 @@ type AdaptedEndpoint<TParams, TResult, TContext> = IsAny<TParams> extends true
   ? ParameterlessAdaptedEndpoint<TContext, TResult>
   : ParameterizedAdaptedEndpoint<TContext, TParams, TResult>;
 
-type SyncFunctionResult<TResult> = IsAny<ZodOutput<TResult>> extends true ? void
-  : ZodOutput<TResult>;
+type SyncFunctionResult<TResult extends ZodType> =
+  IsAny<z.infer<TResult>> extends true ? void
+    : z.infer<TResult>;
 
 type UnzodAdaptedEndpoint<
   TParams extends ZodType,
   TResult extends ZodType,
   TContext,
 > = AdaptedEndpoint<
-  ZodOutput<TParams>,
+  z.infer<TParams>,
   SyncFunctionResult<TResult>,
   TContext
 >;

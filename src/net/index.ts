@@ -1,5 +1,4 @@
 export type { StreamSubscription } from "../util.ts";
-
 export type { SchemaAdapter } from "./adapter.ts";
 export { createCaller } from "./caller.ts";
 export type { SchemaCaller, SendRequestFunction } from "./caller.ts";
@@ -15,8 +14,7 @@ export type {
   SchemaField,
   SchemaScope,
 } from "./schema.ts";
-export { ChannelSender } from "./sender.ts";
-export type { Sender } from "./sender.ts";
+export { ChannelSender, Sender } from "./sender.ts";
 export { createSocket } from "./socket.ts";
 export type {
   ChannelSocket,
@@ -35,5 +33,3 @@ export type {
   RequestTransport,
   ResponseMessage,
 } from "./transport.ts";
-
-export { z } from "zod";
