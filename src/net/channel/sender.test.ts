@@ -1,6 +1,6 @@
 import { assertEquals } from "@std/assert/equals";
 import { assertRejects } from "@std/assert/rejects";
-import { ControlledChannel, timeout } from "./helpers.test.ts";
+import { ControlledChannel, timeout } from "../helpers.test.ts";
 import { ChannelSender } from "./sender.ts";
 
 type CreateMessageSuccess = { id: string };

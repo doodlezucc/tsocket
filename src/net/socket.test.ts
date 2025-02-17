@@ -4,8 +4,7 @@ import { z } from "zod";
 import { ControlledChannel } from "./helpers.test.ts";
 import { createParser } from "./parser.ts";
 import { endpoint, schema } from "./schema.ts";
-import { createSocket } from "./socket.ts";
-import { RequestTransport } from "./transport.ts";
+import { createSocket, RequestTransport } from "./socket.ts";
 
 const serverSchema = schema({
   createMessage: endpoint({

@@ -1,4 +1,4 @@
-import { Message } from "./transport.ts";
+import { Message } from "./message.ts";
 
 export interface MessageCodec<T = unknown> {
   encode(message: Message): T;

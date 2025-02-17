@@ -1,11 +1,8 @@
-import { StreamSubscription } from "../util.ts";
-import { Parser } from "./parser.ts";
-import { Schema } from "./schema.ts";
-import {
-  ChannelTransport,
-  DispatchMessage,
-  RequestMessage,
-} from "./transport.ts";
+import { StreamSubscription } from "../../util.ts";
+import { Parser } from "../parser.ts";
+import { Schema } from "../schema.ts";
+import { DispatchMessage, RequestMessage } from "./message.ts";
+import { ChannelTransport } from "./transport.ts";
 
 export class ChannelReceiver<TContext> {
   private readonly channelSubscription: StreamSubscription;

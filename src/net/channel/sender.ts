@@ -1,28 +1,7 @@
-import { StreamSubscription } from "../util.ts";
-import { createCaller } from "./caller.ts";
-import { Schema } from "./schema.ts";
-import {
-  ChannelTransport,
-  EndpointPayload,
-  ResponseMessage,
-} from "./transport.ts";
-
-export abstract class Sender {
-  abstract dispatch(endpoint: EndpointPayload): void;
-  abstract request<T>(endpoint: EndpointPayload): Promise<T>;
-
-  createCaller<T extends Schema>(partnerSchema: T) {
-    return createCaller(partnerSchema, {
-      sendRequest: (payload, expectResponse) => {
-        if (expectResponse) {
-          return this.request(payload);
-        } else {
-          this.dispatch(payload);
-        }
-      },
-    });
-  }
-}
+import { StreamSubscription } from "../../util.ts";
+import { EndpointPayload, Sender } from "../transport.ts";
+import { ResponseMessage } from "./message.ts";
+import { ChannelTransport } from "./transport.ts";
 
 type ResponseHandler = (result: unknown) => void;
 

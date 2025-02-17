@@ -1,5 +1,6 @@
 import { StreamSubscription } from "../util.ts";
-import { ChannelTransport, Message } from "./transport.ts";
+import { Message } from "./channel/message.ts";
+import { ChannelTransport } from "./channel/transport.ts";
 
 export function timeout<T>(promise: Promise<T>, timeoutMilliseconds: number) {
   return Promise.race([

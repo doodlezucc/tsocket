@@ -1,9 +1,17 @@
 import { createCaller, SchemaCaller } from "./caller.ts";
+import { ChannelReceiver } from "./channel/receiver.ts";
+import { ChannelSender } from "./channel/sender.ts";
+import { ChannelTransport } from "./channel/transport.ts";
 import { Parser } from "./parser.ts";
-import { ChannelReceiver } from "./receiver.ts";
 import { Schema } from "./schema.ts";
-import { ChannelSender } from "./sender.ts";
-import { ChannelTransport, RequestTransport } from "./transport.ts";
+import { EndpointPayload } from "./transport.ts";
+
+export interface RequestTransport {
+  request(
+    endpoint: EndpointPayload,
+    expectResponse: boolean,
+  ): void | Promise<unknown>;
+}
 
 type LocalOptions<TSchema extends Schema, TContext> = {
   parser: Parser<TSchema, TContext>;

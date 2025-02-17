@@ -1,5 +1,6 @@
-import { JsonCodec, MessageCodec } from "../net/codec.ts";
-import { ChannelTransport, Message } from "../net/transport.ts";
+import { JsonCodec, MessageCodec } from "../net/channel/codec.ts";
+import { Message } from "../net/channel/message.ts";
+import { ChannelTransport } from "../net/channel/transport.ts";
 import { StreamSubscription } from "../util.ts";
 
 type WebSocketEncoding = string | ArrayBufferLike | Blob | ArrayBufferView;
