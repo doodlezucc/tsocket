@@ -8,7 +8,7 @@ import {
   isEndpoint,
   Schema,
   SchemaCollection,
-  SchemaEndpoint,
+  SchemaEndpointImplementation,
   SchemaField,
   SchemaScope,
 } from "./schema.ts";
@@ -105,14 +105,14 @@ class ParserImplementation<TSchema extends Schema, TContext>
   }
 
   private callParsedEndpoint(
-    endpointInSchema: SchemaEndpoint,
+    endpointInSchema: SchemaEndpointImplementation,
     endpointInAdapter: AnyAdaptedEndpoint<TContext>,
     payload: EndpointPayload,
     context: TContext,
   ) {
-    if (endpointInSchema.accepts !== undefined) {
+    if (endpointInSchema.params !== undefined) {
       // Endpoint takes parameters
-      const validatedParams = endpointInSchema.accepts.parse(payload.params);
+      const validatedParams = endpointInSchema.params.parse(payload.params);
 
       return endpointInAdapter(
         validatedParams,

@@ -8,8 +8,8 @@ import { collection, endpoint, schema } from "./schema.ts";
 type TestSchema = typeof TestSchema;
 const TestSchema = schema({
   chat: {
-    create: endpoint({
-      accepts: z.object({ text: z.string() }),
+    create: endpoint().accepts({
+      text: z.string(),
     }),
 
     messages: collection({

@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { transportWebSocket } from "../src/client/index.ts";
 import {
   collection,
@@ -5,32 +6,29 @@ import {
   endpoint,
   schema,
   unchecked,
-  z,
 } from "../src/net/index.ts";
 
 const ServerSchema = schema({
   chat: {
-    forwardMessage: endpoint({
-      accepts: z.object({
+    forwardMessage: endpoint()
+      .accepts({
         text: z.string(),
       }),
-    }),
 
     messages: collection({
       delete: endpoint(),
     }),
   },
 
-  anotherThing: endpoint({
-    accepts: z.object({
+  anotherThing: endpoint()
+    .accepts({
       from: z.number(),
       with: z.array(unchecked<{
         name: string;
         description?: string;
       }>()),
-    }),
-    returns: z.number(),
-  }),
+    })
+    .returns(z.number()),
 });
 
 const socket = createSocket({

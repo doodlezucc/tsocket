@@ -7,12 +7,11 @@ import { endpoint, schema } from "./schema.ts";
 import { createSocket, RequestTransport } from "./socket.ts";
 
 const serverSchema = schema({
-  createMessage: endpoint({
-    accepts: z.object({
+  createMessage: endpoint()
+    .accepts({
       text: z.string(),
-    }),
-    returns: z.string(),
-  }),
+    })
+    .returns(z.string()),
 });
 
 interface ServerAdapterContext {
@@ -20,11 +19,9 @@ interface ServerAdapterContext {
 }
 
 const clientSchema = schema({
-  onMessagePosted: endpoint({
-    accepts: z.object({
-      messageId: z.string(),
-    }),
-  }),
+  onMessagePosted: endpoint().accepts(z.object({
+    messageId: z.string(),
+  })),
 });
 
 Deno.test("Socket over request transport", async () => {

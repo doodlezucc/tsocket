@@ -5,6 +5,7 @@ import {
   Schema,
   SchemaCollection,
   SchemaEndpoint,
+  SchemaEndpointImplementation,
   SchemaField,
   SchemaScope,
 } from "./schema.ts";
@@ -48,12 +49,12 @@ interface RecursiveContext {
   path: (string | number)[];
 }
 
-function createCallerForEndpoint<T extends SchemaEndpoint>(
+function createCallerForEndpoint<T extends SchemaEndpointImplementation>(
   endpoint: T,
   context: RecursiveContext,
 ): SchemaEndpointCaller<T> {
   function callEndpointWith(params?: unknown) {
-    const endpointExpectsResponse = endpoint.returns instanceof ZodType;
+    const endpointExpectsResponse = endpoint.result instanceof ZodType;
 
     const payload: EndpointPayload = {
       path: context.path,
@@ -70,7 +71,7 @@ function createCallerForEndpoint<T extends SchemaEndpoint>(
 
     if (endpointExpectsResponse && request instanceof Promise) {
       return request.then((response) => {
-        return endpoint.returns!.parse(response);
+        return endpoint.result!.parse(response);
       });
     }
   }
