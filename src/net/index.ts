@@ -1,6 +1,6 @@
 export type { StreamSubscription } from "../util.ts";
 
-export { JsonCodec } from "./channel/codec.ts";
+export { codecCbor, codecJson } from "./channel/codec.ts";
 export type { MessageCodec } from "./channel/codec.ts";
 export type {
   DispatchMessage,

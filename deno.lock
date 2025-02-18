@@ -28,7 +28,8 @@
     "jsr:@std/path@~0.225.2": "0.225.2",
     "jsr:@std/testing@^1.0.9": "1.0.9",
     "jsr:@ts-morph/bootstrap@0.24": "0.24.0",
-    "jsr:@ts-morph/common@0.24": "0.24.0"
+    "jsr:@ts-morph/common@0.24": "0.24.0",
+    "npm:cbor2@^1.11.0": "1.11.0"
   },
   "jsr": {
     "@david/code-block-writer@13.0.3": {
@@ -159,6 +160,11 @@
       ]
     }
   },
+  "npm": {
+    "cbor2@1.11.0": {
+      "integrity": "sha512-teHnpDGcDzwouFJgCJLpDY2zMaEOYvYDryd6sln67wPrCuObmwriG1NAA1w7rUIf/l++bNdts4U7WeVdYTGwLg=="
+    }
+  },
   "redirects": {
     "https://esm.sh/zod@^3.24.1": "https://esm.sh/zod@3.24.2",
     "https://esm.sh/zod@^3.24.2": "https://esm.sh/zod@3.24.2"
@@ -171,7 +177,8 @@
     "dependencies": [
       "jsr:@deno/dnt@~0.41.3",
       "jsr:@std/assert@^1.0.11",
-      "jsr:@std/testing@^1.0.9"
+      "jsr:@std/testing@^1.0.9",
+      "npm:cbor2@^1.11.0"
     ]
   }
 }

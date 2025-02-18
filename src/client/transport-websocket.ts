@@ -1,11 +1,11 @@
-import { JsonCodec, MessageCodec } from "../net/channel/codec.ts";
+import { CborCodec, codecCbor, MessageCodec } from "../net/channel/codec.ts";
 import { Message } from "../net/channel/message.ts";
 import { ChannelTransport } from "../net/channel/transport.ts";
 import { StreamSubscription } from "../util.ts";
 
 type WebSocketEncoding = string | ArrayBufferLike | Blob | ArrayBufferView;
 
-export class WebSocketChannel<TEncoding extends WebSocketEncoding = string>
+export class WebSocketChannel<TEncoding extends WebSocketEncoding>
   implements ChannelTransport {
   private outgoingQueue: TEncoding[] = [];
   private isOpen: boolean;
@@ -14,6 +14,13 @@ export class WebSocketChannel<TEncoding extends WebSocketEncoding = string>
     readonly socket: WebSocket,
     readonly codec: MessageCodec<TEncoding>,
   ) {
+    if (codec instanceof CborCodec && socket.binaryType !== "arraybuffer") {
+      throw new Error(
+        `The WebSocket channel was created with a WebSocket of binaryType "${socket.binaryType}". ` +
+          'Please set the binaryType to "arraybuffer".',
+      );
+    }
+
     if (socket.readyState === WebSocket.OPEN) {
       this.isOpen = true;
     } else {
@@ -62,12 +69,15 @@ export class WebSocketChannel<TEncoding extends WebSocketEncoding = string>
 }
 
 interface WebSocketTransportOptions {
-  codec?: MessageCodec<string>;
+  codec?: MessageCodec<WebSocketEncoding>;
 }
 
 export function transportWebSocket(
   webSocket: WebSocket,
   options?: WebSocketTransportOptions,
 ) {
-  return new WebSocketChannel(webSocket, options?.codec ?? JsonCodec);
+  return new WebSocketChannel(
+    webSocket,
+    options?.codec ?? codecCbor(),
+  );
 }
