@@ -12,18 +12,23 @@ type EnumLike = {
 };
 
 type EnumDataType<T extends EnumLike = EnumLike> = {
-  _enum: T;
+  __enum: T;
 };
 
 type OptionalDataType<T extends RequiredDataType = RequiredDataType> = {
-  _optional: T;
+  __optional: T;
+};
+
+type PartialDataType<T extends ObjectDataType = ObjectDataType> = {
+  __partial: T;
 };
 
 type RequiredDataType =
   | PrimitiveDataType
   | [DataType]
-  | ObjectDataType
-  | EnumDataType;
+  | EnumDataType
+  | PartialDataType
+  | ObjectDataType;
 
 export type DataType = RequiredDataType | OptionalDataType;
 
@@ -44,20 +49,27 @@ export type Value<T extends DataType> = T extends "boolean" ? boolean
   : T extends "string" ? string
   : T extends EnumDataType<infer TEnum> ? TEnum[keyof TEnum] // This shows up as the enum itself
   : T extends OptionalDataType<infer TSubType> ? (Value<TSubType> | undefined)
+  : T extends PartialDataType<infer TObject> ? Partial<ObjectValue<TObject>>
   : T extends ArrayDataType<infer E> ? ArrayValue<E>
   : T extends ObjectDataType ? ObjectValue<T>
   : never;
 
-export function array<E extends DataType>(elementType: E): ArrayDataType<E> {
-  return [elementType];
-}
-
 export function oneOf<T extends EnumLike>(type: T): EnumDataType<T> {
-  return { _enum: type };
+  return { __enum: type };
 }
 
 export function optional<T extends DataType>(type: T): OptionalDataType<T> {
-  return { _optional: type };
+  return { __optional: type };
+}
+
+export function partial<T extends ObjectDataType>(
+  object: T,
+): PartialDataType<T> {
+  return { __partial: object };
+}
+
+export function array<E extends DataType>(elementType: E): ArrayDataType<E> {
+  return [elementType];
 }
 
 export function object<T extends ObjectDataType>(object: T): T {
@@ -154,37 +166,12 @@ class CodecObject<T extends ObjectDataType>
 
     for (const [key, propertyCodec] of this.entryCodecs) {
       const value = propertyCodec.read(reader);
-      result[key] = value;
+      if (value !== undefined) {
+        result[key] = value;
+      }
     }
 
     return result as ObjectValue<T>;
-  }
-}
-
-class CodecOptional<T extends RequiredDataType>
-  implements DataTypeCodec<OptionalDataType<T>> {
-  private readonly subTypeCodec: DataTypeCodec<T>;
-
-  constructor(subType: T) {
-    this.subTypeCodec = createCodecFor(subType);
-  }
-
-  write(writer: PacketWriter, value: Value<T> | undefined) {
-    if (value !== undefined) {
-      writer.boolean(true);
-      this.subTypeCodec.write(writer, value);
-    } else {
-      writer.boolean(false);
-    }
-  }
-
-  read(reader: PacketReader) {
-    const isDefined = reader.boolean();
-    if (isDefined) {
-      return this.subTypeCodec.read(reader);
-    } else {
-      return undefined;
-    }
   }
 }
 
@@ -217,6 +204,52 @@ class CodecEnum<T extends EnumLike>
   }
 }
 
+class CodecOptional<T extends RequiredDataType>
+  implements DataTypeCodec<OptionalDataType<T>> {
+  private readonly subTypeCodec: DataTypeCodec<T>;
+
+  constructor(subType: T) {
+    this.subTypeCodec = createCodecFor(subType);
+  }
+
+  write(writer: PacketWriter, value: Value<T> | undefined) {
+    if (value !== undefined) {
+      writer.boolean(true);
+      this.subTypeCodec.write(writer, value);
+    } else {
+      writer.boolean(false);
+    }
+  }
+
+  read(reader: PacketReader) {
+    const isDefined = reader.boolean();
+    if (isDefined) {
+      return this.subTypeCodec.read(reader);
+    } else {
+      return undefined;
+    }
+  }
+}
+
+function createCodecForPartialObject<T extends ObjectDataType>(
+  object: T,
+) {
+  const objectWithOptionals: Record<string, OptionalDataType> = {};
+
+  for (const key in object) {
+    const propertyDataType = object[key] as DataType;
+    if (isOptionalDataType(propertyDataType)) {
+      objectWithOptionals[key] = propertyDataType;
+    } else {
+      objectWithOptionals[key] = optional(propertyDataType);
+    }
+  }
+
+  return new CodecObject(objectWithOptionals) as unknown as DataTypeCodec<
+    PartialDataType<T>
+  >;
+}
+
 interface NaturalIntegerOptions {
   exclusiveMaximum: number;
 }
@@ -241,8 +274,14 @@ export function createCodecFor<T extends DataType>(type: T): DataTypeCodec<T> {
   return uncheckedCreateCodecFor(type) as unknown as DataTypeCodec<T>;
 }
 
-function isEnumDataType(type: DataType): type is EnumDataType {
-  return typeof type === "object" && "_enum" in type;
+function isEnumDataType(type: DataType & object): type is EnumDataType {
+  return "__enum" in type;
+}
+function isPartialDataType(type: DataType & object): type is PartialDataType {
+  return "__partial" in type;
+}
+function isOptionalDataType(type: DataType): type is OptionalDataType {
+  return typeof type === "object" && "__optional" in type;
 }
 
 function uncheckedCreateCodecFor<T extends DataType>(type: T) {
@@ -263,9 +302,11 @@ function uncheckedCreateCodecFor<T extends DataType>(type: T) {
     const elementType = type[0];
     return new CodecArray(elementType);
   } else if (isEnumDataType(type)) {
-    return new CodecEnum(type._enum);
-  } else if (type._optional) {
-    return new CodecOptional(type._optional);
+    return new CodecEnum(type.__enum);
+  } else if (isPartialDataType(type)) {
+    return createCodecForPartialObject(type.__partial);
+  } else if (isOptionalDataType(type)) {
+    return new CodecOptional(type.__optional);
   } else {
     return new CodecObject(type);
   }
