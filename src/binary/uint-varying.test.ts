@@ -1,8 +1,8 @@
 import { assertEquals, assertThrows } from "@std/assert";
 import { readPacket, writePacket } from "./packet.ts";
-import { readVariableUint, writeVariableUint } from "./variable-uint.ts";
+import { readVariableUint, writeVariableUint } from "./uint-varying.ts";
 
-Deno.test("Variable UInt size is minimal", () => {
+Deno.test("Varying UInt size is minimal", () => {
   function packedUint(value: number) {
     return writePacket((p) => writeVariableUint(p, value));
   }
@@ -21,7 +21,7 @@ Deno.test("Variable UInt size is minimal", () => {
   assertThrows(() => packedUint(0b01000000_00000000_00000000_00000000));
 });
 
-Deno.test("Variable UInt gets encoded correctly", () => {
+Deno.test("Varying UInt gets encoded correctly", () => {
   function testForValue(value: number) {
     const packet = writePacket((p) => writeVariableUint(p, value));
 

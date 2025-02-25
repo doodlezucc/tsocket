@@ -1,4 +1,4 @@
-import { readVariableUint, writeVariableUint } from "./variable-uint.ts";
+import { readVariableUint, writeVariableUint } from "./uint-varying.ts";
 
 interface Types {
   boolean: boolean;
@@ -6,7 +6,7 @@ interface Types {
   uint8: number;
   uint16: number;
   uint32: number;
-  uintVar: number;
+  uintVarying: number;
 
   int: number;
   double: number;
@@ -36,17 +36,41 @@ export type PacketReader = {
 const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder();
 
+const MaxPacketSize = 0xffffff; // 16 MiB (or 16.78 MB)
+
 class PacketWriterImpl implements PacketWriter {
+  private readonly buffer: ArrayBuffer;
   private readonly view: DataView;
+
+  private bufferSize: number = 1024;
   private offset = 0;
 
-  constructor(readonly allocatedBytes: number = 1024) {
-    const buffer = new ArrayBuffer(allocatedBytes);
-    this.view = new DataView(buffer);
+  constructor() {
+    this.buffer = new ArrayBuffer(this.bufferSize, {
+      maxByteLength: MaxPacketSize,
+    });
+    this.view = new DataView(this.buffer);
+  }
+
+  private allocate(bytes: number) {
+    const requiredSize = this.offset + bytes;
+
+    if (requiredSize > this.bufferSize) {
+      // Increase the buffer size until it can hold the new number of bytes.
+      do {
+        this.bufferSize *= 2;
+      } while (requiredSize > this.bufferSize);
+
+      console.log("increasing to", this.bufferSize);
+
+      // The do-while loop ensures a minimum number of condition checks,
+      // and the buffer gets resized exactly once whenever necessary.
+      this.buffer.resize(this.bufferSize);
+    }
   }
 
   toBuffer() {
-    return this.view.buffer.slice(0, this.offset);
+    return this.buffer.slice(0, this.offset);
   }
 
   boolean(value: boolean) {
@@ -54,35 +78,45 @@ class PacketWriterImpl implements PacketWriter {
   }
 
   uint8(value: number) {
+    this.allocate(SizeInBytes.uint8);
+
     this.view.setUint8(this.offset, value);
     this.offset += SizeInBytes.uint8;
     return this;
   }
 
   uint16(value: number) {
+    this.allocate(SizeInBytes.uint16);
+
     this.view.setUint16(this.offset, value);
     this.offset += SizeInBytes.uint16;
     return this;
   }
 
   uint32(value: number) {
+    this.allocate(SizeInBytes.uint32);
+
     this.view.setUint32(this.offset, value);
     this.offset += SizeInBytes.uint32;
     return this;
   }
 
-  uintVar(value: number) {
+  uintVarying(value: number) {
     writeVariableUint(this, value);
     return this;
   }
 
   int(value: number) {
+    this.allocate(SizeInBytes.int);
+
     this.view.setInt32(this.offset, value);
     this.offset += SizeInBytes.int;
     return this;
   }
 
   double(value: number) {
+    this.allocate(SizeInBytes.double);
+
     this.view.setFloat64(this.offset, value);
     this.offset += SizeInBytes.double;
     return this;
@@ -90,17 +124,18 @@ class PacketWriterImpl implements PacketWriter {
 
   string(value: string) {
     const stringBytes = textEncoder.encode(value);
-    const stringLength = stringBytes.length;
-    this.uintVar(stringLength);
+    const stringSize = stringBytes.length;
+    this.uintVarying(stringSize);
 
+    this.allocate(stringSize);
     const bufferRegion = new Uint8Array(
       this.view.buffer,
       this.offset,
-      stringLength,
+      stringSize,
     );
     bufferRegion.set(stringBytes);
 
-    this.offset += stringLength;
+    this.offset += stringSize;
     return this;
   }
 }
@@ -132,7 +167,7 @@ class PacketReaderImpl implements PacketReader {
     return result;
   }
 
-  uintVar() {
+  uintVarying() {
     return readVariableUint(this);
   }
 
@@ -149,7 +184,7 @@ class PacketReaderImpl implements PacketReader {
   }
 
   string() {
-    const stringLength = this.uintVar();
+    const stringLength = this.uintVarying();
     const stringRegion = new Uint8Array(
       this.view.buffer,
       this.offset,

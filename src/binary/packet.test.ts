@@ -28,3 +28,11 @@ Deno.test("Packet writing/reading", () => {
   );
   assertEquals(reader.boolean(), true);
 });
+
+Deno.test("Packet allocates space when needed", () => {
+  writePacket((writer) => {
+    for (let i = 0; i < 1000000; i++) {
+      writer.uint32(i);
+    }
+  });
+});

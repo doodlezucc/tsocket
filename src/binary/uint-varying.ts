@@ -7,7 +7,7 @@ enum Header {
   Uint32 = 0b11_000000,
 }
 
-enum Limits {
+export enum Limit {
   Uint8 = 0b00111111,
   Uint16 = 0b00111111_11111111,
   Uint24 = 0b00111111_11111111_11111111,
@@ -15,16 +15,16 @@ enum Limits {
 }
 
 export function writeVariableUint(writer: PacketWriter, naturalInt: number) {
-  if (naturalInt <= Limits.Uint8) {
+  if (naturalInt <= Limit.Uint8) {
     writer.uint8(Header.Uint8 | naturalInt);
-  } else if (naturalInt <= Limits.Uint16) {
+  } else if (naturalInt <= Limit.Uint16) {
     writer.uint8(Header.Uint16 | (naturalInt >> 8));
     writer.uint8(naturalInt & 0xFF);
-  } else if (naturalInt <= Limits.Uint24) {
+  } else if (naturalInt <= Limit.Uint24) {
     writer.uint8(Header.Uint24 | (naturalInt >> 16));
     writer.uint8((naturalInt >> 8) & 0xFF);
     writer.uint8(naturalInt & 0xFF);
-  } else if (naturalInt <= Limits.Uint32) {
+  } else if (naturalInt <= Limit.Uint32) {
     writer.uint8(Header.Uint32 | (naturalInt >> 24));
     writer.uint8((naturalInt >> 16) & 0xFF);
     writer.uint8((naturalInt >> 8) & 0xFF);
