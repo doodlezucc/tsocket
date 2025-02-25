@@ -4,6 +4,7 @@ import {
   createCodecFor,
   DataType,
   object,
+  oneOf,
   optional,
   Value,
 } from "./data-type.ts";
@@ -13,6 +14,7 @@ function testCodec<T extends DataType>(dataType: T, value: Value<T>) {
   const codec = createCodecFor(dataType);
 
   const encoded = writePacket((p) => codec.write(p, value));
+  console.log(encoded);
 
   const reader = readPacket(encoded);
   const decoded = codec.read(reader);
@@ -97,4 +99,22 @@ Deno.test("Object Codec", () => {
       // isEpic: false,
     })
   );
+});
+
+Deno.test("Enum Codec", () => {
+  enum MyEnum {
+    First,
+    Second = 2,
+    Third = "third",
+    Fourth = "4",
+    Fifth = "5th",
+  }
+
+  const codec = oneOf(MyEnum);
+
+  testCodec(codec, MyEnum.First);
+  testCodec(codec, MyEnum.Second);
+  testCodec(codec, MyEnum.Third);
+  testCodec(codec, MyEnum.Fourth);
+  testCodec(codec, MyEnum.Fifth);
 });

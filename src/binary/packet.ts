@@ -61,8 +61,6 @@ class PacketWriterImpl implements PacketWriter {
         this.bufferSize *= 2;
       } while (requiredSize > this.bufferSize);
 
-      console.log("increasing to", this.bufferSize);
-
       // The do-while loop ensures a minimum number of condition checks,
       // and the buffer gets resized exactly once whenever necessary.
       this.buffer.resize(this.bufferSize);

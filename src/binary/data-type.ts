@@ -7,11 +7,23 @@ type ObjectDataType = {
   [key: string]: DataType;
 };
 
+type EnumLike = {
+  [key: string]: string | number;
+};
+
+type EnumDataType<T extends EnumLike = EnumLike> = {
+  _enum: T;
+};
+
 type OptionalDataType<T extends RequiredDataType = RequiredDataType> = {
   _optional: T;
 };
 
-type RequiredDataType = PrimitiveDataType | [DataType] | ObjectDataType;
+type RequiredDataType =
+  | PrimitiveDataType
+  | [DataType]
+  | ObjectDataType
+  | EnumDataType;
 
 export type DataType = RequiredDataType | OptionalDataType;
 
@@ -24,10 +36,13 @@ export type ObjectValue<T extends ObjectDataType> =
     [K in keyof T as T[K] extends OptionalDataType ? K : never]?: Value<T[K]>;
   };
 
+export type EnumValue<T extends EnumLike> = T[keyof T];
+
 export type Value<T extends DataType> = T extends "boolean" ? boolean
   : T extends "int" ? number
   : T extends "double" ? number
   : T extends "string" ? string
+  : T extends EnumDataType<infer TEnum> ? TEnum[keyof TEnum] // This shows up as the enum itself
   : T extends OptionalDataType<infer TSubType> ? (Value<TSubType> | undefined)
   : T extends ArrayDataType<infer E> ? ArrayValue<E>
   : T extends ObjectDataType ? ObjectValue<T>
@@ -35,6 +50,10 @@ export type Value<T extends DataType> = T extends "boolean" ? boolean
 
 export function array<E extends DataType>(elementType: E): ArrayDataType<E> {
   return [elementType];
+}
+
+export function oneOf<T extends EnumLike>(type: T): EnumDataType<T> {
+  return { _enum: type };
 }
 
 export function optional<T extends DataType>(type: T): OptionalDataType<T> {
@@ -169,7 +188,42 @@ class CodecOptional<T extends RequiredDataType>
   }
 }
 
-export function createCodecForNaturalInteger(exclusiveMaximum: number) {
+class CodecEnum<T extends EnumLike>
+  implements DataTypeCodec<EnumDataType<T>, EnumValue<T>> {
+  private readonly indexingCodec: DataTypeCodec<"int">;
+  private readonly enumValues: EnumValue<T>[];
+
+  constructor(enumType: T) {
+    // Remove reverse mappings from the compiled TypeScript enum.
+    // https://www.typescriptlang.org/docs/handbook/enums.html#reverse-mappings
+    const enumEntries = Object.entries(enumType).filter(([key]) =>
+      isNaN(Number(key))
+    );
+
+    this.enumValues = enumEntries.map(([_, value]) => value) as EnumValue<T>[];
+    this.indexingCodec = createCodecForNaturalInteger({
+      exclusiveMaximum: this.enumValues.length,
+    });
+  }
+
+  write(writer: PacketWriter, value: EnumValue<T>) {
+    const index = this.enumValues.indexOf(value);
+    this.indexingCodec.write(writer, index);
+  }
+
+  read(reader: PacketReader) {
+    const index = this.indexingCodec.read(reader);
+    return this.enumValues[index];
+  }
+}
+
+interface NaturalIntegerOptions {
+  exclusiveMaximum: number;
+}
+
+export function createCodecForNaturalInteger(options: NaturalIntegerOptions) {
+  const { exclusiveMaximum } = options;
+
   if (exclusiveMaximum <= 0xff) {
     return CodecUint8;
   } else if (exclusiveMaximum <= VaryingUintlimit.Uint16) {
@@ -185,6 +239,10 @@ export function createCodecForNaturalInteger(exclusiveMaximum: number) {
 
 export function createCodecFor<T extends DataType>(type: T): DataTypeCodec<T> {
   return uncheckedCreateCodecFor(type) as unknown as DataTypeCodec<T>;
+}
+
+function isEnumDataType(type: DataType): type is EnumDataType {
+  return typeof type === "object" && "_enum" in type;
 }
 
 function uncheckedCreateCodecFor<T extends DataType>(type: T) {
@@ -204,6 +262,8 @@ function uncheckedCreateCodecFor<T extends DataType>(type: T) {
   } else if (Array.isArray(type)) {
     const elementType = type[0];
     return new CodecArray(elementType);
+  } else if (isEnumDataType(type)) {
+    return new CodecEnum(type._enum);
   } else if (type._optional) {
     return new CodecOptional(type._optional);
   } else {
