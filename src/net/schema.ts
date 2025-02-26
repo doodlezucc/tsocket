@@ -1,21 +1,11 @@
-import {
-  ParseInput,
-  ParseReturnType,
-  z,
-  ZodObject,
-  ZodRawShape,
-  ZodType,
-} from "zod";
+import { DataType } from "../binary/data-type.ts";
 
-export type SchemaCollection<T extends SchemaScope = SchemaScope> = [T];
+const DefaultCollectionIndex: DataType = "int";
 
-interface SchemaEndpointProperties<
-  TParams extends ZodType = ZodType,
-  TResult extends ZodType = ZodType,
-> {
-  accepts?: TParams;
-  returns?: TResult;
-}
+export type SchemaCollection<
+  E extends SchemaScope = SchemaScope,
+  TIndex extends DataType = DataType,
+> = [E, TIndex];
 
 export type SchemaField =
   | SchemaCollection
@@ -32,45 +22,33 @@ export function schema<T extends Schema>(schema: T) {
   return schema;
 }
 
-export function isEndpoint(field: SchemaField): field is SchemaEndpoint {
+export function isEndpoint(
+  field: SchemaField,
+): field is SchemaEndpoint {
   return field instanceof SchemaEndpointImplementation;
 }
 
 export interface SchemaEndpoint<
-  TParams extends ZodType = ZodType,
-  TResult extends ZodType = ZodType,
+  TParams extends DataType = DataType,
+  TResult extends DataType = DataType,
 > {
-  accepts<T extends ZodRawShape>(
-    params: T,
-  ): SchemaEndpoint<ZodObject<T>, TResult>;
-  accepts<T extends ZodType>(params: T): SchemaEndpoint<T, TResult>;
+  accepts<T extends DataType>(params: T): SchemaEndpoint<T, TResult>;
 
-  returns<T extends ZodRawShape>(
-    result: T,
-  ): SchemaEndpoint<TParams, ZodObject<T>>;
-  returns<T extends ZodType>(result: T): SchemaEndpoint<TParams, T>;
+  returns<T extends DataType>(result: T): SchemaEndpoint<TParams, T>;
 }
 
 export class SchemaEndpointImplementation<
-  TParams extends ZodType = ZodType,
-  TResult extends ZodType = ZodType,
+  TParams extends DataType = DataType,
+  TResult extends DataType = DataType,
 > implements SchemaEndpoint<TParams, TResult> {
   constructor(readonly params?: TParams, readonly result?: TResult) {
   }
 
-  accepts<T extends ZodType | ZodRawShape>(params: T) {
-    if (params instanceof ZodType) {
-      return new SchemaEndpointImplementation(params, this.result);
-    } else {
-      return new SchemaEndpointImplementation(z.object(params), this.result);
-    }
+  accepts<T extends DataType>(params: T) {
+    return new SchemaEndpointImplementation(params, this.result);
   }
-  returns<T extends ZodType | ZodRawShape>(result: T) {
-    if (result instanceof ZodType) {
-      return new SchemaEndpointImplementation(this.params, result);
-    } else {
-      return new SchemaEndpointImplementation(this.params, z.object(result));
-    }
+  returns<T extends DataType>(result: T) {
+    return new SchemaEndpointImplementation(this.params, result);
   }
 }
 
@@ -80,18 +58,21 @@ export function endpoint(): SchemaEndpoint {
   return emptyEndpoint;
 }
 
+export function collection<TIndex extends DataType, T extends SchemaScope>(
+  index: TIndex,
+  schema: T,
+): SchemaCollection<T, TIndex>;
 export function collection<T extends SchemaScope>(
   schema: T,
-): SchemaCollection<T> {
-  return [schema];
-}
+): SchemaCollection<T>;
 
-class ZodUnchecked<T> extends ZodType {
-  override _parse(input: ParseInput): ParseReturnType<T> {
-    return input as unknown as ParseReturnType<T>;
+export function collection<TIndex extends DataType, T extends SchemaScope>(
+  indexOrSchema: TIndex | T,
+  schemaIfTypeSpecified?: T,
+): SchemaCollection<T, TIndex> {
+  if (schemaIfTypeSpecified === undefined) {
+    return [indexOrSchema as T, DefaultCollectionIndex as TIndex];
+  } else {
+    return [schemaIfTypeSpecified, indexOrSchema as TIndex];
   }
-}
-
-export function unchecked<T>(): ZodType<T> {
-  return new ZodUnchecked({});
 }
