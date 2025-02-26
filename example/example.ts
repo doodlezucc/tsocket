@@ -14,7 +14,7 @@ const ServerSchema = schema({
         text: "string",
       }),
 
-    messages: collection({
+    messages: collection("string", {
       delete: endpoint(),
     }),
   },

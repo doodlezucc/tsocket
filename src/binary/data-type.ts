@@ -1,7 +1,7 @@
 import { PacketReader, PacketWriter } from "./packet.ts";
 import { Limit as VaryingUintlimit } from "./uint-varying.ts";
 
-type PrimitiveDataType = "boolean" | "int" | "double" | "string";
+export type PrimitiveDataType = "boolean" | "int" | "double" | "string";
 type ArrayDataType<T extends DataType> = [T];
 type ObjectDataType = {
   [key: string]: DataType;
@@ -31,6 +31,8 @@ type RequiredDataType =
   | ObjectDataType;
 
 export type DataType = RequiredDataType | OptionalDataType;
+
+export type IsBaseDataType<T> = DataType extends T ? true : false;
 
 export type ArrayValue<E extends DataType> = Value<E>[];
 export type ObjectValue<T extends ObjectDataType> =
@@ -76,13 +78,15 @@ export function object<T extends ObjectDataType>(object: T): T {
   return object;
 }
 
-export interface DataTypeCodec<
-  T extends DataType = DataType,
-  TValue = Value<T>,
-> {
-  write: (writer: PacketWriter, value: TValue) => void;
-  read: (reader: PacketReader) => TValue;
+// deno-lint-ignore no-explicit-any
+export interface BinaryCodec<T = any> {
+  write: (writer: PacketWriter, value: T) => void;
+  read: (reader: PacketReader) => T;
 }
+
+export type DataTypeCodec<T extends DataType = DataType> = BinaryCodec<
+  Value<T>
+>;
 
 const CodecUint8: DataTypeCodec<"int"> = {
   write: (writer, value) => writer.uint8(value),
@@ -118,8 +122,7 @@ const CodecString: DataTypeCodec<"string"> = {
   read: (reader) => reader.string(),
 };
 
-class CodecArray<E extends DataType>
-  implements DataTypeCodec<ArrayDataType<E>, ArrayValue<E>> {
+class CodecArray<E extends DataType> implements BinaryCodec<ArrayValue<E>> {
   private readonly elementCodec: DataTypeCodec<E>;
 
   constructor(elementType: E) {
@@ -146,7 +149,7 @@ class CodecArray<E extends DataType>
 }
 
 class CodecObject<T extends ObjectDataType>
-  implements DataTypeCodec<T, ObjectValue<T>> {
+  implements BinaryCodec<ObjectValue<T>> {
   private readonly entryCodecs: [string, DataTypeCodec][];
 
   constructor(dataType: ObjectDataType) {
@@ -175,8 +178,7 @@ class CodecObject<T extends ObjectDataType>
   }
 }
 
-class CodecEnum<T extends EnumLike>
-  implements DataTypeCodec<EnumDataType<T>, EnumValue<T>> {
+class CodecEnum<T extends EnumLike> implements BinaryCodec<EnumValue<T>> {
   private readonly indexingCodec: DataTypeCodec<"int">;
   private readonly enumValues: EnumValue<T>[];
 
@@ -205,17 +207,17 @@ class CodecEnum<T extends EnumLike>
 }
 
 class CodecOptional<T extends RequiredDataType>
-  implements DataTypeCodec<OptionalDataType<T>> {
-  private readonly subTypeCodec: DataTypeCodec<T>;
+  implements BinaryCodec<Value<T> | undefined> {
+  private readonly definedCodec: BinaryCodec<Value<T>>;
 
   constructor(subType: T) {
-    this.subTypeCodec = createCodecFor(subType);
+    this.definedCodec = createCodecFor(subType);
   }
 
   write(writer: PacketWriter, value: Value<T> | undefined) {
     if (value !== undefined) {
       writer.boolean(true);
-      this.subTypeCodec.write(writer, value);
+      this.definedCodec.write(writer, value);
     } else {
       writer.boolean(false);
     }
@@ -224,7 +226,7 @@ class CodecOptional<T extends RequiredDataType>
   read(reader: PacketReader) {
     const isDefined = reader.boolean();
     if (isDefined) {
-      return this.subTypeCodec.read(reader);
+      return this.definedCodec.read(reader);
     } else {
       return undefined;
     }

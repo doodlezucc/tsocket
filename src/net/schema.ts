@@ -1,10 +1,13 @@
 import { DataType } from "../binary/data-type.ts";
 
-const DefaultCollectionIndex: DataType = "int";
+export type IndexType = number | string;
+export type IndexDataType = "int" | "string";
+
+const DefaultIndexType = "int" satisfies IndexDataType;
 
 export type SchemaCollection<
   E extends SchemaScope = SchemaScope,
-  TIndex extends DataType = DataType,
+  TIndex extends IndexDataType = IndexDataType,
 > = [E, TIndex];
 
 export type SchemaField =
@@ -58,20 +61,24 @@ export function endpoint(): SchemaEndpoint {
   return emptyEndpoint;
 }
 
-export function collection<TIndex extends DataType, T extends SchemaScope>(
-  index: TIndex,
-  schema: T,
-): SchemaCollection<T, TIndex>;
+export function collection<
+  TIndex extends IndexDataType,
+  T extends SchemaScope,
+>(index: TIndex, schema: T): SchemaCollection<T, TIndex>;
+
 export function collection<T extends SchemaScope>(
   schema: T,
-): SchemaCollection<T>;
+): SchemaCollection<T, typeof DefaultIndexType>;
 
-export function collection<TIndex extends DataType, T extends SchemaScope>(
+export function collection<
+  TIndex extends IndexDataType,
+  T extends SchemaScope,
+>(
   indexOrSchema: TIndex | T,
   schemaIfTypeSpecified?: T,
 ): SchemaCollection<T, TIndex> {
   if (schemaIfTypeSpecified === undefined) {
-    return [indexOrSchema as T, DefaultCollectionIndex as TIndex];
+    return [indexOrSchema as T, DefaultIndexType as TIndex];
   } else {
     return [schemaIfTypeSpecified, indexOrSchema as TIndex];
   }

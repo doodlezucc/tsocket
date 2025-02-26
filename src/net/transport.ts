@@ -1,8 +1,9 @@
 import { createCaller } from "./caller.ts";
-import { Schema } from "./schema.ts";
+import { IndexType, Schema } from "./schema.ts";
 
 export interface EndpointPayload {
-  path: (string | number)[];
+  endpointIndex: number;
+  collectionIndices: IndexType[];
   params?: unknown;
 }
 

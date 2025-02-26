@@ -1,6 +1,6 @@
-import { z, ZodType } from "zod";
-import { IsAny } from "../util.ts";
+import { DataType, IsBaseDataType, Value } from "../binary/data-type.ts";
 import {
+  IndexType,
   isEndpoint,
   Schema,
   SchemaCollection,
@@ -11,22 +11,25 @@ import {
 } from "./schema.ts";
 import { EndpointPayload } from "./transport.ts";
 
-type CallerFunction<TParams, TResult> = IsAny<TParams> extends true
+type CallerFunction<TParams, TResult> = IsBaseDataType<TParams> extends true
   ? () => TResult
   : (params: TParams) => TResult;
 
-type CallerFunctionResult<TResult extends ZodType> =
-  IsAny<z.infer<TResult>> extends true ? void
-    : Promise<z.infer<TResult>>;
+type CallerFunctionResult<TResult extends DataType> =
+  IsBaseDataType<TResult> extends true ? void
+    : Promise<Value<TResult>>;
 
-type CallerFunctionFrom<TParams extends ZodType, TResult extends ZodType> =
+type CallerFunctionFrom<TParams extends DataType, TResult extends DataType> =
   CallerFunction<
-    z.infer<TParams>,
+    Value<TParams>,
     CallerFunctionResult<TResult>
   >;
 
-interface SchemaCollectionCaller<E extends SchemaScope> {
-  get(id: string | number): SchemaCaller<E>;
+interface SchemaCollectionCaller<
+  E extends SchemaScope,
+  TIndex extends DataType,
+> {
+  get(index: Value<TIndex>): SchemaCaller<E>;
 }
 
 type SchemaEndpointCaller<T extends SchemaEndpoint> = T extends
@@ -39,75 +42,93 @@ type SchemaScopeCaller<T extends SchemaScope> = {
 };
 
 export type SchemaCaller<T extends SchemaField = SchemaField> = T extends
-  SchemaCollection<infer E> ? SchemaCollectionCaller<E>
+  SchemaCollection<infer E, infer TIndex> ? SchemaCollectionCaller<E, TIndex>
   : T extends SchemaEndpoint ? SchemaEndpointCaller<T>
   : T extends SchemaScope ? SchemaScopeCaller<T>
   : never;
 
 interface RecursiveContext {
-  options: CreateCallerOptions;
-  path: (string | number)[];
+  collectionIndices: IndexType[];
 }
 
-function createCallerForEndpoint<T extends SchemaEndpointImplementation>(
-  endpoint: T,
-  context: RecursiveContext,
-): SchemaEndpointCaller<T> {
-  function callEndpointWith(params?: unknown) {
-    const endpointExpectsResponse = endpoint.result instanceof ZodType;
+class CallerIndexer {
+  private currentEndpointIndex = 0;
 
-    const payload: EndpointPayload = {
-      path: context.path,
-    };
+  constructor(private readonly options: CreateCallerOptions) {}
 
-    if (params !== undefined) {
-      payload.params = params;
-    }
+  traverse<T extends Schema>(schema: T) {
+    // Reset state of indexer
+    this.currentEndpointIndex = 0;
 
-    const request = context.options.sendRequest(
-      payload,
-      endpointExpectsResponse,
-    );
-
-    if (endpointExpectsResponse && request instanceof Promise) {
-      return request.then((response) => {
-        return endpoint.result!.parse(response);
-      });
-    }
+    return this.createCallerForField(schema, { collectionIndices: [] });
   }
 
-  return callEndpointWith as SchemaEndpointCaller<T>;
-}
+  private createCallerForEndpoint<T extends SchemaEndpointImplementation>(
+    endpoint: SchemaEndpointImplementation,
+    endpointIndex: number,
+    context: RecursiveContext,
+  ): SchemaEndpointCaller<T> {
+    const { sendRequest } = this.options;
 
-function createCallerForField<T extends SchemaField>(
-  field: T,
-  context: RecursiveContext,
-): SchemaCaller<T> {
-  if (Array.isArray(field)) {
-    const collectionSchemaType = field[0];
+    function callEndpointWith(params?: Value<DataType>) {
+      const endpointExpectsResponse = endpoint.result !== undefined;
 
-    return <SchemaCaller<T>> {
-      get(id) {
-        return createCallerForField(collectionSchemaType, {
-          ...context,
-          path: [...context.path, id],
-        });
-      },
-    };
-  } else if (isEndpoint(field)) {
-    return createCallerForEndpoint(field, context) as SchemaCaller<T>;
-  } else {
-    const scope = field as SchemaScope;
-    const callScope: Record<string, SchemaCaller> = {};
+      const payload: EndpointPayload = {
+        endpointIndex,
+        collectionIndices: context.collectionIndices,
+      };
 
-    for (const key in scope) {
-      callScope[key] = createCallerForField(scope[key], {
-        ...context,
-        path: [...context.path, key],
-      });
+      if (params !== undefined) {
+        payload.params = params;
+      }
+
+      const response = sendRequest(
+        payload,
+        endpointExpectsResponse,
+      );
+
+      if (endpointExpectsResponse && response instanceof Promise) {
+        return response;
+      }
     }
 
-    return callScope as SchemaCaller<T>;
+    return callEndpointWith as SchemaEndpointCaller<T>;
+  }
+
+  private createCallerForField<T extends SchemaField>(
+    field: T,
+    context: RecursiveContext,
+  ): SchemaCaller<T> {
+    if (Array.isArray(field)) {
+      const collectionSchemaType = field[0];
+
+      return <SchemaCaller<T>> {
+        get: (index) => {
+          return this.createCallerForField(collectionSchemaType, {
+            ...context,
+            collectionIndices: [...context.collectionIndices, index],
+          });
+        },
+      };
+    } else if (isEndpoint(field)) {
+      const endpointIndex = this.currentEndpointIndex;
+      this.currentEndpointIndex++;
+
+      return this.createCallerForEndpoint(
+        field,
+        endpointIndex,
+        context,
+      ) as SchemaCaller<T>;
+    } else {
+      const scope = field as SchemaScope;
+      const callScope: Record<string, SchemaCaller> = {};
+
+      for (const key in scope) {
+        callScope[key] = this.createCallerForField(scope[key], context);
+      }
+
+      return callScope as SchemaCaller<T>;
+    }
   }
 }
 
@@ -124,5 +145,7 @@ export function createCaller<T extends Schema>(
   schema: T,
   options: CreateCallerOptions,
 ): SchemaCaller<T> {
-  return createCallerForField(schema, { options, path: [] });
+  const callerIndexer = new CallerIndexer(options);
+
+  return callerIndexer.traverse(schema);
 }
