@@ -48,19 +48,18 @@ export type SchemaCaller<T extends SchemaField = SchemaField> = T extends
   : never;
 
 interface RecursiveContext {
+  currentEndpointIndex: number;
   collectionIndices: IndexType[];
 }
 
 class CallerIndexer {
-  private currentEndpointIndex = 0;
-
   constructor(private readonly options: CreateCallerOptions) {}
 
   traverse<T extends Schema>(schema: T) {
-    // Reset state of indexer
-    this.currentEndpointIndex = 0;
-
-    return this.createCallerForField(schema, { collectionIndices: [] });
+    return this.createCallerForField(schema, {
+      currentEndpointIndex: 0,
+      collectionIndices: [],
+    });
   }
 
   private createCallerForEndpoint<T extends SchemaEndpointImplementation>(
@@ -102,17 +101,27 @@ class CallerIndexer {
     if (Array.isArray(field)) {
       const collectionSchemaType = field[0];
 
+      // Destructure "context" to evaluate the endpoint index AT THIS TIME
+      const {
+        currentEndpointIndex: startIndexWithinCollection,
+        collectionIndices,
+      } = context;
+
+      // Dry run to find and count all nested endpoints (the "context" object gets updated)
+      this.createCallerForField(collectionSchemaType, context);
+
       return <SchemaCaller<T>> {
         get: (index) => {
+          // The recursive context is freshly constructed on a per-call basis
           return this.createCallerForField(collectionSchemaType, {
-            ...context,
-            collectionIndices: [...context.collectionIndices, index],
+            currentEndpointIndex: startIndexWithinCollection,
+            collectionIndices: [...collectionIndices, index],
           });
         },
       };
     } else if (isEndpoint(field)) {
-      const endpointIndex = this.currentEndpointIndex;
-      this.currentEndpointIndex++;
+      const endpointIndex = context.currentEndpointIndex;
+      context.currentEndpointIndex++;
 
       return this.createCallerForEndpoint(
         field,
@@ -123,7 +132,7 @@ class CallerIndexer {
       const scope = field as SchemaScope;
       const callScope: Record<string, SchemaCaller> = {};
 
-      for (const key in scope) {
+      for (const key of Object.keys(scope)) {
         callScope[key] = this.createCallerForField(scope[key], context);
       }
 

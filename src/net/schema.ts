@@ -61,14 +61,14 @@ export function endpoint(): SchemaEndpoint {
   return emptyEndpoint;
 }
 
+export function collection<T extends SchemaScope>(
+  schema: T,
+): SchemaCollection<T, typeof DefaultIndexType>;
+
 export function collection<
   TIndex extends IndexDataType,
   T extends SchemaScope,
 >(index: TIndex, schema: T): SchemaCollection<T, TIndex>;
-
-export function collection<T extends SchemaScope>(
-  schema: T,
-): SchemaCollection<T, typeof DefaultIndexType>;
 
 export function collection<
   TIndex extends IndexDataType,

@@ -1,6 +1,6 @@
-import { assertSpyCall, assertSpyCalls, stub } from "@std/testing/mock";
+import { assertSpyCall, assertSpyCalls, spy, stub } from "@std/testing/mock";
 
-import { z } from "zod";
+import { assertEquals } from "@std/assert";
 import { SchemaAdapter } from "./adapter.ts";
 import { createParser } from "./parser.ts";
 import { collection, endpoint, schema } from "./schema.ts";
@@ -9,11 +9,11 @@ type TestSchema = typeof TestSchema;
 const TestSchema = schema({
   chat: {
     create: endpoint().accepts({
-      text: z.string(),
+      text: "string",
     }),
 
     messages: collection({
-      delete: endpoint(),
+      delete: endpoint().returns("string"),
     }),
   },
 });
@@ -23,6 +23,10 @@ interface AdapterContext {
 }
 
 Deno.test("Request parsing", () => {
+  const deleteMessageSpy = spy((id: number) => {
+    console.log(`Deleting message with ID ${id}`);
+  });
+
   const adapter: SchemaAdapter<TestSchema, AdapterContext> = {
     chat: {
       create({ text }) {
@@ -33,7 +37,8 @@ Deno.test("Request parsing", () => {
         get(id) {
           const myMessage = {
             delete() {
-              console.log(`Deleting message with ID ${id}`);
+              deleteMessageSpy(id);
+              return "ok";
             },
           };
 
@@ -51,7 +56,8 @@ Deno.test("Request parsing", () => {
   };
 
   parser.callEndpoint({
-    path: ["chat", "create"],
+    endpointIndex: 0,
+    collectionIndices: [],
     params: {
       text: "This is a new message",
     },
@@ -61,4 +67,16 @@ Deno.test("Request parsing", () => {
   assertSpyCall(createMessageStub, 0, {
     args: [{ text: "This is a new message" }, adapterContext],
   });
+
+  const result = parser.callEndpoint({
+    endpointIndex: 1,
+    collectionIndices: [1234],
+  }, adapterContext);
+
+  assertSpyCalls(deleteMessageSpy, 1);
+  assertSpyCall(deleteMessageSpy, 0, {
+    args: [1234],
+  });
+
+  assertEquals(result, "ok");
 });

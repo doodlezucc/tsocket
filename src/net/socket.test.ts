@@ -1,6 +1,5 @@
 import { assertEquals } from "@std/assert/equals";
 import { assertSpyCall, assertSpyCalls, spy } from "@std/testing/mock";
-import { z } from "zod";
 import { ControlledChannel } from "./helpers.test.ts";
 import { createParser } from "./parser.ts";
 import { endpoint, schema } from "./schema.ts";
@@ -9,9 +8,9 @@ import { createSocket, RequestTransport } from "./socket.ts";
 const serverSchema = schema({
   createMessage: endpoint()
     .accepts({
-      text: z.string(),
+      text: "string",
     })
-    .returns(z.string()),
+    .returns("string"),
 });
 
 interface ServerAdapterContext {
@@ -19,9 +18,9 @@ interface ServerAdapterContext {
 }
 
 const clientSchema = schema({
-  onMessagePosted: endpoint().accepts(z.object({
-    messageId: z.string(),
-  })),
+  onMessagePosted: endpoint().accepts({
+    messageId: "string",
+  }),
 });
 
 Deno.test("Socket over request transport", async () => {
@@ -39,10 +38,10 @@ Deno.test("Socket over request transport", async () => {
   const requestTransport: RequestTransport = {
     async request(endpoint, expectResponse) {
       if (expectResponse) {
-        console.log(`Requesting ${endpoint.path}`);
+        console.log(`Requesting endpoint index ${endpoint.endpointIndex}`);
         return await parser.callEndpoint(endpoint);
       } else {
-        console.log(`Dispatching ${endpoint.path}`);
+        console.log(`Dispatching endpoint index ${endpoint.endpointIndex}`);
         parser.callEndpoint(endpoint);
       }
     },
