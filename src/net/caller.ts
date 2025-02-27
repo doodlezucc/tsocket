@@ -1,4 +1,4 @@
-import { DataType, IsBaseDataType, Value } from "../binary/data-type.ts";
+import { DataType, IsBaseDataType, Value } from "./binary/data-type.ts";
 import {
   IndexType,
   isEndpoint,

@@ -1,10 +1,10 @@
-import { BinaryCodec, createCodecFor, oneOf } from "../../binary/data-type.ts";
+import { BinaryCodec, createCodecFor, oneOf } from "../binary/data-type.ts";
 import {
   PacketReader,
   PacketWriter,
   readPacket,
   writePacket,
-} from "../../binary/packet.ts";
+} from "../binary/packet.ts";
 import { IndexedSchema } from "../schema-indexing.ts";
 import { IndexDataType } from "../schema.ts";
 import { EndpointPayload } from "../transport.ts";

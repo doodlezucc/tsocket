@@ -5,7 +5,7 @@ import {
   assertLess,
 } from "@std/assert";
 import { spy, SpyLike } from "@std/testing/mock";
-import { oneOf } from "../binary/data-type.ts";
+import { oneOf } from "./binary/data-type.ts";
 import { createCaller } from "./caller.ts";
 import { collection, endpoint, IndexType, schema } from "./schema.ts";
 import { EndpointPayload } from "./transport.ts";

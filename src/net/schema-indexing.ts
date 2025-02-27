@@ -1,16 +1,16 @@
 import {
-  BinaryCodec,
-  createCodecFor,
-  createCodecForNaturalInteger,
-  DataTypeCodec,
-} from "../binary/data-type.ts";
-import {
   AdaptedCollection,
   AdaptedScope,
   AnyAdaptedEndpoint,
   AnyAdaptedField,
   SchemaAdapter,
 } from "./adapter.ts";
+import {
+  BinaryCodec,
+  createCodecFor,
+  createCodecForNaturalInteger,
+  DataTypeCodec,
+} from "./binary/data-type.ts";
 import {
   IndexDataType,
   IndexType,

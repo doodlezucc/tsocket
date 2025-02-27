@@ -9,7 +9,8 @@
   },
   "exports": {
     ".": "./src/net/index.ts",
-    "./client": "./src/client/index.ts"
+    "./client": "./src/client/index.ts",
+    "./binary": "./src/binary/index.ts"
   },
   "imports": {
     "@deno/dnt": "jsr:@deno/dnt@^0.41.3",

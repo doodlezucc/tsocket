@@ -1,5 +1,5 @@
-import { array, optional } from "../src/binary/data-type.ts";
 import { transportWebSocket } from "../src/client/index.ts";
+import { array, optional } from "../src/net/binary/data-type.ts";
 import {
   collection,
   createSocket,

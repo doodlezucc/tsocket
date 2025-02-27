@@ -1,4 +1,4 @@
-import { DataType } from "../binary/data-type.ts";
+import { DataType } from "./binary/data-type.ts";
 
 export type IndexType = number | string;
 export type IndexDataType = "int" | "string";
