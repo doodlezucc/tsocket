@@ -1,4 +1,5 @@
 import { StreamSubscription } from "../../util.ts";
+import { IndexedSchema } from "../schema-indexing.ts";
 import { EndpointPayload, Sender } from "../transport.ts";
 import { ResponseMessage } from "./message.ts";
 import { ChannelTransport } from "./transport.ts";
@@ -7,6 +8,7 @@ type ResponseHandler = (result: unknown) => void;
 
 interface ChannelSenderOptions {
   channel: ChannelTransport;
+  indexedSchema: IndexedSchema;
 }
 
 export class ChannelSender extends Sender {
@@ -19,6 +21,7 @@ export class ChannelSender extends Sender {
   constructor(options: ChannelSenderOptions) {
     super();
     this.channel = options.channel;
+    this.channel.initialize?.(options.indexedSchema);
 
     this.channelSubscription = this.channel.subscribe((message) => {
       if ("result" in message) {

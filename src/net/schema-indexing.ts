@@ -4,7 +4,6 @@ import {
   createCodecForNaturalInteger,
   DataTypeCodec,
 } from "../binary/data-type.ts";
-import { PacketReader, PacketWriter } from "../binary/packet.ts";
 import {
   AdaptedCollection,
   AdaptedScope,
@@ -12,7 +11,6 @@ import {
   AnyAdaptedField,
   SchemaAdapter,
 } from "./adapter.ts";
-import { EndpointPayload } from "./index.ts";
 import {
   IndexDataType,
   IndexType,
@@ -161,49 +159,4 @@ class SchemaIndexer<T extends Schema> {
 export function indexSchema<T extends Schema>(schema: T): IndexedSchema<T> {
   const indexer = new SchemaIndexer(schema);
   return indexer.traverse();
-}
-
-export class EndpointPayloadCodec implements BinaryCodec<EndpointPayload> {
-  constructor(private readonly schema: IndexedSchema) {}
-
-  write(writer: PacketWriter, payload: EndpointPayload) {
-    const { endpointIndex, collectionIndices, params } = payload;
-
-    this.schema.endpointIndexCodec.write(writer, payload.endpointIndex);
-
-    const endpoint = this.schema.indexedEndpoints[endpointIndex];
-    const collectionDepth = endpoint.collectionIndexCodecs.length;
-
-    for (let i = 0; i < collectionDepth; i++) {
-      const collectionIndexCodec = endpoint.collectionIndexCodecs[i];
-      const collectionIndex = collectionIndices[i];
-
-      collectionIndexCodec.write(writer, collectionIndex);
-    }
-
-    if (endpoint.paramsCodec !== undefined) {
-      // Endpoint accepts parameters
-      endpoint.paramsCodec.write(writer, params);
-    }
-  }
-
-  read(reader: PacketReader): EndpointPayload {
-    const endpointIndex = this.schema.endpointIndexCodec.read(reader);
-    const endpoint = this.schema.indexedEndpoints[endpointIndex];
-
-    const collectionIndices: IndexDataType[] = [];
-
-    for (const collectionIndexCodec of endpoint.collectionIndexCodecs) {
-      const collectionIndex = collectionIndexCodec.read(reader);
-      collectionIndices.push(collectionIndex);
-    }
-
-    if (endpoint.paramsCodec !== undefined) {
-      // Endpoint accepts parameters
-      const params = endpoint.paramsCodec.read(reader);
-      return { endpointIndex, collectionIndices, params };
-    }
-
-    return { endpointIndex, collectionIndices };
-  }
 }

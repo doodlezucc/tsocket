@@ -22,7 +22,7 @@ function testCodec<T extends DataType>(
 ) {
   const codec = createCodecFor(dataType);
 
-  const encoded = writePacket((p) => codec.write(p, value));
+  const encoded = writePacket((writer) => codec.write(writer, value));
   console.log(encoded);
 
   const reader = readPacket(encoded);

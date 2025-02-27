@@ -1,4 +1,8 @@
-import { CborCodec, codecCbor, MessageCodec } from "../net/channel/codec.ts";
+import {
+  codecBinary,
+  PacketMessageCodec,
+} from "../net/channel/codec-binary.ts";
+import { MessageCodec } from "../net/channel/codec.ts";
 import { Message } from "../net/channel/message.ts";
 import { ChannelTransport } from "../net/channel/transport.ts";
 import { StreamSubscription } from "../util.ts";
@@ -14,7 +18,9 @@ export class WebSocketChannel<TEncoding extends WebSocketEncoding>
     readonly socket: WebSocket,
     readonly codec: MessageCodec<TEncoding>,
   ) {
-    if (codec instanceof CborCodec && socket.binaryType !== "arraybuffer") {
+    if (
+      codec instanceof PacketMessageCodec && socket.binaryType !== "arraybuffer"
+    ) {
       throw new Error(
         `The WebSocket channel was created with a WebSocket of binaryType "${socket.binaryType}". ` +
           'Please set the binaryType to "arraybuffer".',
@@ -78,6 +84,6 @@ export function transportWebSocket(
 ) {
   return new WebSocketChannel(
     webSocket,
-    options?.codec ?? codecCbor(),
+    options?.codec ?? codecBinary(),
   );
 }

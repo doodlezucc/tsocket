@@ -11,6 +11,8 @@ export class ChannelReceiver<TContext> {
     readonly channel: ChannelTransport,
     readonly parser: Parser<Schema, TContext>,
   ) {
+    this.channel.initialize?.(parser.indexedSchema);
+
     this.channelSubscription = channel.subscribe((message) => {
       if ("payload" in message) {
         this.processEndpointCall(message);

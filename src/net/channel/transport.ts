@@ -1,8 +1,10 @@
 import { StreamSubscription } from "../../util.ts";
+import { IndexedSchema } from "../schema-indexing.ts";
 import { MessageCodec } from "./codec.ts";
 import { Message } from "./message.ts";
 
 export interface ChannelTransport {
+  initialize?: (indexedSchema: IndexedSchema) => void;
   send(message: Message): void;
   subscribe(onReceive: (message: Message) => void): StreamSubscription;
 }
@@ -16,6 +18,10 @@ export interface EncodedChannel<TEncoding> {
 
 export class EncodedChannelTransport<TEncoding> implements ChannelTransport {
   constructor(private readonly channel: EncodedChannel<TEncoding>) {}
+
+  initialize(indexedSchema: IndexedSchema): void {
+    this.channel.codec.initialize?.(indexedSchema);
+  }
 
   send(message: Message): void {
     this.channel.send(this.channel.codec.encode(message));

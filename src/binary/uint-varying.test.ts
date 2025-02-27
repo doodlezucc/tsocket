@@ -4,7 +4,7 @@ import { readVariableUint, writeVariableUint } from "./uint-varying.ts";
 
 Deno.test("Varying UInt size is minimal", () => {
   function packedUint(value: number) {
-    return writePacket((p) => writeVariableUint(p, value));
+    return writePacket((writer) => writeVariableUint(writer, value));
   }
 
   assertEquals(packedUint(0).byteLength, 1);
@@ -23,7 +23,7 @@ Deno.test("Varying UInt size is minimal", () => {
 
 Deno.test("Varying UInt gets encoded correctly", () => {
   function testForValue(value: number) {
-    const packet = writePacket((p) => writeVariableUint(p, value));
+    const packet = writePacket((writer) => writeVariableUint(writer, value));
 
     const reader = readPacket(packet);
     assertEquals(readVariableUint(reader), value);

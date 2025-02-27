@@ -203,7 +203,9 @@ export function readPacket(packet: ArrayBuffer | DataView): PacketReader {
   }
 }
 
-export function writePacket(write: (p: PacketWriter) => void): ArrayBuffer {
+export function writePacket(
+  write: (writer: PacketWriter) => void,
+): ArrayBuffer {
   const writer = new PacketWriterImpl();
   write(writer);
   return writer.toBuffer();

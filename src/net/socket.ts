@@ -3,6 +3,7 @@ import { ChannelReceiver } from "./channel/receiver.ts";
 import { ChannelSender } from "./channel/sender.ts";
 import { ChannelTransport } from "./channel/transport.ts";
 import { Parser } from "./parser.ts";
+import { indexSchema } from "./schema-indexing.ts";
 import { Schema } from "./schema.ts";
 import { EndpointPayload } from "./transport.ts";
 
@@ -122,7 +123,10 @@ function createChannelSocket(
   options: HasChannelTransport & HasLocalOrPartnerProcessing,
 ) {
   if (hasPartnerProcessing(options)) {
-    const sender = new ChannelSender({ channel: options.transport });
+    const sender = new ChannelSender({
+      channel: options.transport,
+      indexedSchema: indexSchema(options.partnerProcessing.schema),
+    });
     const partnerCaller = sender.createCaller(options.partnerProcessing.schema);
 
     if (hasLocalProcessing(options)) {

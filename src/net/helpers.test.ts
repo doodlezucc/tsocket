@@ -20,7 +20,7 @@ export class ControlledChannel implements ChannelTransport {
     if (this.onSend) {
       this.onSend(data);
     } else {
-      console.log(`Sending ${data}`);
+      console.log("Sending", data);
     }
   }
 

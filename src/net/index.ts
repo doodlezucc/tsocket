@@ -1,6 +1,7 @@
 export type { StreamSubscription } from "../util.ts";
 
-export { codecCbor, codecJson } from "./channel/codec.ts";
+export { codecBinary, PacketMessageCodec } from "./channel/codec-binary.ts";
+export { codecJson } from "./channel/codec.ts";
 export type { MessageCodec } from "./channel/codec.ts";
 export type {
   DispatchMessage,
@@ -21,7 +22,7 @@ export { createCaller } from "./caller.ts";
 export type { SchemaCaller, SendRequestFunction } from "./caller.ts";
 export { createParser } from "./parser.ts";
 export type { Parser } from "./parser.ts";
-export { collection, endpoint, schema, unchecked } from "./schema.ts";
+export { collection, endpoint, schema } from "./schema.ts";
 export type {
   Schema,
   SchemaCollection,
