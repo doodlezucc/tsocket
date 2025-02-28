@@ -6,7 +6,7 @@ import { createParser } from "./parser.ts";
 import { endpoint, schema } from "./schema.ts";
 import { createSocket, RequestTransport } from "./socket.ts";
 
-const serverSchema = schema({
+const ServerSchema = schema({
   createMessage: endpoint()
     .accepts({
       text: "string",
@@ -18,7 +18,7 @@ interface ServerAdapterContext {
   connectionId: string;
 }
 
-const clientSchema = schema({
+const ClientSchema = schema({
   onMessagePosted: endpoint().accepts({
     messageId: "string",
   }),
@@ -26,7 +26,7 @@ const clientSchema = schema({
 
 Deno.test("Socket over request transport", async () => {
   const parser = createParser(
-    serverSchema,
+    ServerSchema,
     { connectionId: "connection-id" } as ServerAdapterContext,
     {
       createMessage({ text }, { connectionId }) {
@@ -51,7 +51,7 @@ Deno.test("Socket over request transport", async () => {
   const socket = createSocket({
     transport: requestTransport,
     partnerProcessing: {
-      schema: serverSchema,
+      schema: ServerSchema,
     },
   });
 
@@ -63,12 +63,16 @@ Deno.test("Socket over request transport", async () => {
 });
 
 Deno.test("Socket over channel transport", async (t) => {
-  const channelServerToClient = new ControlledChannel((outgoingMessage) =>
-    channelClientToServer.simulateIncomingMessage(outgoingMessage)
-  );
-  const channelClientToServer = new ControlledChannel((outgoingMessage) =>
-    channelServerToClient.simulateIncomingMessage(outgoingMessage)
-  );
+  const channelServerToClient = new ControlledChannel({
+    onSend(outgoingMessage) {
+      channelClientToServer.simulateIncomingMessage(outgoingMessage);
+    },
+  });
+  const channelClientToServer = new ControlledChannel({
+    onSend(outgoingMessage) {
+      channelServerToClient.simulateIncomingMessage(outgoingMessage);
+    },
+  });
 
   const transportServerToClient: ChannelTransportFactory = {
     create: () => channelServerToClient,
@@ -87,7 +91,7 @@ Deno.test("Socket over channel transport", async (t) => {
       transport: transportServerToClient,
       localProcessing: {
         parser: createParser(
-          serverSchema,
+          ServerSchema,
           { connectionId: "connection-id" } as ServerAdapterContext,
           {
             createMessage: createMessageSpy,
@@ -99,7 +103,7 @@ Deno.test("Socket over channel transport", async (t) => {
     const clientSocket = createSocket({
       transport: transportClientToServer,
       partnerProcessing: {
-        schema: serverSchema,
+        schema: ServerSchema,
       },
     });
 
@@ -131,7 +135,7 @@ Deno.test("Socket over channel transport", async (t) => {
       transport: transportServerToClient,
       localProcessing: {
         parser: createParser(
-          serverSchema,
+          ServerSchema,
           { connectionId: "connection-id" } as ServerAdapterContext,
           {
             createMessage: createMessageSpy,
@@ -139,7 +143,7 @@ Deno.test("Socket over channel transport", async (t) => {
         ),
       },
       partnerProcessing: {
-        schema: clientSchema,
+        schema: ClientSchema,
       },
     });
 
@@ -150,12 +154,12 @@ Deno.test("Socket over channel transport", async (t) => {
     const clientSocket = createSocket({
       transport: transportClientToServer,
       localProcessing: {
-        parser: createParser(clientSchema, {
+        parser: createParser(ClientSchema, {
           onMessagePosted: onMessagePostedSpy,
         }),
       },
       partnerProcessing: {
-        schema: serverSchema,
+        schema: ServerSchema,
       },
     });
 

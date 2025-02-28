@@ -1,6 +1,6 @@
 import { StreamSubscription } from "../../util.ts";
 import { IndexedSchema } from "../schema-indexing.ts";
-import { MessageCodec } from "./codec.ts";
+import { MessageCodec, MessageCodecFactory } from "./codec.ts";
 import { Message } from "./message.ts";
 
 export interface ChannelTransport {
@@ -15,30 +15,36 @@ export interface ChannelTransportFactory<
 }
 
 export interface EncodedChannel<TEncoding> {
-  codec: MessageCodec<TEncoding>;
-
   send(data: TEncoding): void;
   subscribe(onReceive: (data: TEncoding) => void): StreamSubscription;
 }
 
 export class EncodedChannelTransport<TEncoding> implements ChannelTransport {
-  constructor(private readonly channel: EncodedChannel<TEncoding>) {}
+  constructor(
+    private readonly codec: MessageCodec<TEncoding>,
+    private readonly channel: EncodedChannel<TEncoding>,
+  ) {}
 
   send(message: Message): void {
-    this.channel.send(this.channel.codec.encode(message));
+    this.channel.send(this.codec.encode(message));
   }
 
   subscribe(onReceive: (message: Message) => void): StreamSubscription {
     return this.channel.subscribe((data) => {
-      onReceive(this.channel.codec.decode(data));
+      onReceive(this.codec.decode(data));
     });
   }
 }
 
+interface CustomChannelOptions<TEncoding> extends EncodedChannel<TEncoding> {
+  codec: MessageCodecFactory<TEncoding>;
+}
+
 export function transportCustomChannel<TEncoding>(
-  options: EncodedChannel<TEncoding>,
+  options: CustomChannelOptions<TEncoding>,
 ): ChannelTransportFactory<EncodedChannelTransport<TEncoding>> {
   return {
-    create: () => new EncodedChannelTransport(options),
+    create: (indexedSchema) =>
+      new EncodedChannelTransport(options.codec.create(indexedSchema), options),
   };
 }

@@ -1,4 +1,5 @@
 import { StreamSubscription } from "../util.ts";
+import { MessageCodec } from "./channel/codec.ts";
 import { Message } from "./channel/message.ts";
 import { ChannelTransport } from "./channel/transport.ts";
 
@@ -9,32 +10,48 @@ export function timeout<T>(promise: Promise<T>, timeoutMilliseconds: number) {
   ]);
 }
 
-type ChannelListener = (message: Message) => void;
+type ChannelListener<T> = (message: T) => void;
 
-export class ControlledChannel implements ChannelTransport {
-  private readonly responseListeners = new Set<ChannelListener>();
+interface ControlledChannelOptions<T> {
+  onSend?: ChannelListener<T>;
+  codec?: MessageCodec<T>;
+}
 
-  constructor(private readonly onSend?: ChannelListener) {}
+export class ControlledChannel<T = Message> implements ChannelTransport {
+  private readonly onSend?: ChannelListener<T>;
+  private readonly codec: MessageCodec<T>;
 
-  send(data: Message): void {
+  private readonly responseListeners = new Set<ChannelListener<Message>>();
+
+  constructor(options?: ControlledChannelOptions<T>) {
+    this.onSend = options?.onSend;
+    this.codec = options?.codec ?? {
+      encode: (message) => message as T,
+      decode: (message) => message as Message,
+    };
+  }
+
+  send(message: Message): void {
+    const encodedMessage = this.codec.encode(message);
+
     if (this.onSend) {
-      this.onSend(data);
+      this.onSend(encodedMessage);
     } else {
-      console.log("Sending", data);
+      console.log("Sending", encodedMessage);
     }
   }
 
-  simulateIncomingMessage(data: Message) {
+  simulateIncomingMessage(data: T) {
     for (const onReceive of this.responseListeners) {
       try {
-        onReceive(data);
+        onReceive(this.codec.decode(data));
       } catch (err) {
         console.warn(err);
       }
     }
   }
 
-  subscribe(onReceive: ChannelListener): StreamSubscription {
+  subscribe(onReceive: ChannelListener<Message>): StreamSubscription {
     this.responseListeners.add(onReceive);
 
     return {
