@@ -1,4 +1,4 @@
-import { assertEquals } from "@std/assert";
+import { assertEquals, assertRejects } from "@std/assert";
 import { assertSpyCall, spy } from "@std/testing/mock";
 import { oneOf } from "../binary/data-type.ts";
 import { ControlledChannel } from "../helpers.test.ts";
@@ -24,6 +24,8 @@ const ServerSchema = schema({
           processedAreaId: "int",
           status: oneOf(AreaStatus),
         }),
+
+      throwAnError: endpoint().returns("boolean"),
     }),
   },
 
@@ -129,6 +131,9 @@ Deno.test("Socket with binary channel transport", async () => {
           areas: {
             get: (areaId) => ({
               setStatus: (status) => setAreaStatusSpy(areaId, status),
+              throwAnError: () => {
+                throw `Error thrown from area ${areaId}`;
+              },
             }),
           },
         },
@@ -158,6 +163,12 @@ Deno.test("Socket with binary channel transport", async () => {
   assertSpyCall(updatePostSpy, 0, {
     args: ["user-1", 1234, "This is my first updated post"],
   });
+
+  assertRejects(
+    () => clientSocket.partner.sandbox.areas.get(505).throwAnError(),
+    Error,
+    "Error thrown from area 505",
+  );
 
   const secondSetStatusResult = await clientSocket.partner.sandbox
     .areas.get(12345678)

@@ -22,17 +22,25 @@ export class ChannelReceiver<TContext> {
     message: DispatchMessage | RequestMessage,
     context?: TContext,
   ) {
-    let result = this.parser.callEndpoint(message.payload, context);
-
     if ("id" in message) {
-      if (result instanceof Promise) {
-        result = await result;
-      }
+      // Handle request message
+      try {
+        let result = this.parser.callEndpoint(message.payload, context);
 
-      this.channel.send({
-        id: message.id,
-        result: result,
-      });
+        if (result instanceof Promise) {
+          result = await result;
+        }
+
+        // Send back success response
+        this.channel.send({ id: message.id, result: result });
+      } catch (err) {
+        // Send back error response
+        const errorMessage = err instanceof Error ? err.message : `${err}`;
+        this.channel.send({ id: message.id, error: errorMessage });
+      }
+    } else {
+      // Handle dispatch message
+      this.parser.callEndpoint(message.payload, context);
     }
   }
 

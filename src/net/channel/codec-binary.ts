@@ -16,7 +16,12 @@ import { IndexedSchema } from "../schema-indexing.ts";
 import { IndexDataType } from "../schema.ts";
 import { EndpointPayload } from "../transport.ts";
 import { MessageCodec, MessageCodecFactory } from "./codec.ts";
-import { Message, RequestMessage, ResponseMessage } from "./message.ts";
+import {
+  Message,
+  RequestMessage,
+  ResponseErrorMessage,
+  ResponseResultMessage,
+} from "./message.ts";
 
 class EndpointPayloadCodec implements BinaryCodec<EndpointPayload> {
   constructor(private readonly schema: IndexedSchema) {}
@@ -67,6 +72,7 @@ enum MessageType {
   Dispatch,
   Request,
   Response,
+  ResponseError,
 }
 
 const CodecMessageType = createCodecFor(oneOf(MessageType));
@@ -116,7 +122,7 @@ class StatefulMessageBinaryCodec implements BinaryCodec<Message> {
     this.endpointPayloadCodec.write(writer, payload);
   }
 
-  private readResponseBody(reader: PacketReader): ResponseMessage {
+  private readResponseResultBody(reader: PacketReader): ResponseResultMessage {
     const requestId = this.requestIdCodec.read(reader);
 
     const resultCodec = this.useStoredRequestResultCodec(
@@ -125,6 +131,16 @@ class StatefulMessageBinaryCodec implements BinaryCodec<Message> {
     );
 
     return { id: requestId, result: resultCodec.read(reader) };
+  }
+
+  private readResponseErrorBody(reader: PacketReader): ResponseErrorMessage {
+    const requestId = this.requestIdCodec.read(reader);
+    this.useStoredRequestResultCodec(
+      requestId,
+      this.outgoingRequestResultCodecs,
+    );
+
+    return { id: requestId, error: reader.string() };
   }
 
   private readRequestBody(reader: PacketReader): RequestMessage {
@@ -139,7 +155,10 @@ class StatefulMessageBinaryCodec implements BinaryCodec<Message> {
     return { id: requestId, payload };
   }
 
-  private writeResponseBody(writer: PacketWriter, message: ResponseMessage) {
+  private writeResponseResultBody(
+    writer: PacketWriter,
+    message: ResponseResultMessage,
+  ) {
     const { id: requestId, result } = message;
 
     const resultCodec = this.useStoredRequestResultCodec(
@@ -149,6 +168,20 @@ class StatefulMessageBinaryCodec implements BinaryCodec<Message> {
 
     this.requestIdCodec.write(writer, requestId);
     resultCodec.write(writer, result);
+  }
+
+  private writeResponseErrorBody(
+    writer: PacketWriter,
+    message: ResponseErrorMessage,
+  ) {
+    const { id: requestId, error } = message;
+    this.useStoredRequestResultCodec(
+      requestId,
+      this.incomingRequestResultCodecs,
+    );
+
+    this.requestIdCodec.write(writer, requestId);
+    writer.string(error);
   }
 
   write(writer: PacketWriter, message: Message) {
@@ -163,9 +196,15 @@ class StatefulMessageBinaryCodec implements BinaryCodec<Message> {
         this.endpointPayloadCodec.write(writer, message.payload);
       }
     } else {
-      CodecMessageType.write(writer, MessageType.Response);
+      if ("result" in message) {
+        CodecMessageType.write(writer, MessageType.Response);
 
-      this.writeResponseBody(writer, message);
+        this.writeResponseResultBody(writer, message);
+      } else {
+        CodecMessageType.write(writer, MessageType.ResponseError);
+
+        this.writeResponseErrorBody(writer, message);
+      }
     }
   }
 
@@ -177,7 +216,9 @@ class StatefulMessageBinaryCodec implements BinaryCodec<Message> {
       case MessageType.Request:
         return this.readRequestBody(reader);
       case MessageType.Response:
-        return this.readResponseBody(reader);
+        return this.readResponseResultBody(reader);
+      case MessageType.ResponseError:
+        return this.readResponseErrorBody(reader);
     }
   }
 }

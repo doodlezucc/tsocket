@@ -3,7 +3,7 @@ import { EndpointPayload, Sender } from "../transport.ts";
 import { ResponseMessage } from "./message.ts";
 import { ChannelTransport } from "./transport.ts";
 
-type ResponseHandler = (result: unknown) => void;
+type ResponseHandler = (message: ResponseMessage) => void;
 
 interface ChannelSenderOptions {
   channel: ChannelTransport;
@@ -20,14 +20,14 @@ export class ChannelSender extends Sender {
     this.channel = options.channel;
 
     this.channelSubscription = this.channel.subscribe((message) => {
-      if ("result" in message) {
+      if ("result" in message || "error" in message) {
         this.handleResponse(message);
       }
     });
   }
 
   private handleResponse(message: ResponseMessage): void {
-    const { id, result } = message;
+    const { id } = message;
 
     const handler = this.responseHandlerMap.get(id);
 
@@ -38,7 +38,7 @@ export class ChannelSender extends Sender {
     }
 
     this.responseHandlerMap.delete(id);
-    handler(result);
+    handler(message);
   }
 
   request<T>(endpoint: EndpointPayload): Promise<T> {
@@ -49,9 +49,13 @@ export class ChannelSender extends Sender {
       requestId++;
     }
 
-    return new Promise((resolve) => {
-      this.responseHandlerMap.set(requestId, (result) => {
-        resolve(result as T);
+    return new Promise((resolve, reject) => {
+      this.responseHandlerMap.set(requestId, (responseMessage) => {
+        if ("result" in responseMessage) {
+          resolve(responseMessage.result as T);
+        } else {
+          reject(new Error(responseMessage.error));
+        }
       });
 
       this.channel.send({
