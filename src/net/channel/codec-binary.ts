@@ -1,4 +1,11 @@
-import { BinaryCodec, createCodecFor, oneOf } from "../binary/data-type.ts";
+import {
+  BinaryCodec,
+  CodecUint8,
+  CodecUintVarying,
+  createCodecFor,
+  DataTypeCodec,
+  oneOf,
+} from "../binary/data-type.ts";
 import {
   PacketReader,
   PacketWriter,
@@ -69,7 +76,10 @@ class StatefulMessageBinaryCodec implements BinaryCodec<Message> {
   private readonly outgoingRequestResultCodecs = new Map<number, BinaryCodec>();
   private readonly incomingRequestResultCodecs = new Map<number, BinaryCodec>();
 
-  constructor(readonly indexedSchema: IndexedSchema) {
+  constructor(
+    readonly indexedSchema: IndexedSchema,
+    readonly requestIdCodec: DataTypeCodec<"int">,
+  ) {
     this.endpointPayloadCodec = new EndpointPayloadCodec(indexedSchema);
   }
 
@@ -97,24 +107,17 @@ class StatefulMessageBinaryCodec implements BinaryCodec<Message> {
   private writeRequestBody(writer: PacketWriter, message: RequestMessage) {
     const { id: requestId, payload } = message;
 
-    // TODO: Instead of every increasing request IDs, resolved/rejected requests
-    // could free up their ID so that it can be used again in a different request.
-    // This would allow using a smaller data type here.
-    //
-    // A uint8 would still allow up to 256 simultaneous requests, which should be enough?
-    // Alternatively, a varying uint would allow 2^32 parallel requests, but comes with a
-    // small additional computing cost.
-    writer.uint32(requestId);
-
     const resultCodec = this.getEndpointResultCodec(payload.endpointIndex);
 
     // Register the endpoint result's codec for use in `readResponseBody(...)`
     this.outgoingRequestResultCodecs.set(requestId, resultCodec);
+
+    this.requestIdCodec.write(writer, requestId);
     this.endpointPayloadCodec.write(writer, payload);
   }
 
   private readResponseBody(reader: PacketReader): ResponseMessage {
-    const requestId = reader.uint32();
+    const requestId = this.requestIdCodec.read(reader);
 
     const resultCodec = this.useStoredRequestResultCodec(
       requestId,
@@ -125,7 +128,7 @@ class StatefulMessageBinaryCodec implements BinaryCodec<Message> {
   }
 
   private readRequestBody(reader: PacketReader): RequestMessage {
-    const requestId = reader.uint32();
+    const requestId = this.requestIdCodec.read(reader);
     const payload = this.endpointPayloadCodec.read(reader);
 
     const resultCodec = this.getEndpointResultCodec(payload.endpointIndex);
@@ -139,12 +142,12 @@ class StatefulMessageBinaryCodec implements BinaryCodec<Message> {
   private writeResponseBody(writer: PacketWriter, message: ResponseMessage) {
     const { id: requestId, result } = message;
 
-    writer.uint32(requestId);
-
     const resultCodec = this.useStoredRequestResultCodec(
       requestId,
       this.incomingRequestResultCodecs,
     );
+
+    this.requestIdCodec.write(writer, requestId);
     resultCodec.write(writer, result);
   }
 
@@ -179,11 +182,19 @@ class StatefulMessageBinaryCodec implements BinaryCodec<Message> {
   }
 }
 
-export class PacketMessageCodec implements MessageCodec<ArrayBuffer> {
-  private readonly binaryCodec!: StatefulMessageBinaryCodec;
+interface PacketMessageCodecOptions {
+  indexedSchema: IndexedSchema;
+  requestIdCodec: DataTypeCodec<"int">;
+}
 
-  constructor(indexedSchema: IndexedSchema) {
-    this.binaryCodec = new StatefulMessageBinaryCodec(indexedSchema);
+export class PacketMessageCodec implements MessageCodec<ArrayBuffer> {
+  private readonly binaryCodec: StatefulMessageBinaryCodec;
+
+  constructor(options: PacketMessageCodecOptions) {
+    this.binaryCodec = new StatefulMessageBinaryCodec(
+      options.indexedSchema,
+      options.requestIdCodec,
+    );
   }
 
   encode(message: Message): ArrayBuffer {
@@ -198,8 +209,28 @@ export class PacketMessageCodec implements MessageCodec<ArrayBuffer> {
   }
 }
 
-export function codecBinary(): MessageCodecFactory<ArrayBuffer> {
+interface BinaryMessageCodecOptions {
+  /**
+   * Enabling this allows more than 256 requests to be awaited at the same time.
+   * The option is disabled by default because it adds a slight computational overhead.
+   *
+   * @default false
+   */
+  enableUnclampedSimultaneousRequests?: boolean;
+}
+
+export function codecBinary(
+  options?: BinaryMessageCodecOptions,
+): MessageCodecFactory<ArrayBuffer> {
+  const enableUnclampedSimultaneousRequests =
+    options?.enableUnclampedSimultaneousRequests ?? false;
+
+  const requestIdCodec = enableUnclampedSimultaneousRequests
+    ? CodecUintVarying
+    : CodecUint8;
+
   return {
-    create: (indexedSchema) => new PacketMessageCodec(indexedSchema),
+    create: (indexedSchema) =>
+      new PacketMessageCodec({ indexedSchema, requestIdCodec }),
   };
 }

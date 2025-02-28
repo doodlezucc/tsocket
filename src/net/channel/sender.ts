@@ -14,7 +14,6 @@ export class ChannelSender extends Sender {
 
   private readonly channelSubscription: StreamSubscription;
   private readonly responseHandlerMap = new Map<number, ResponseHandler>();
-  private sequenceNumber: number = 0;
 
   constructor(options: ChannelSenderOptions) {
     super();
@@ -34,24 +33,29 @@ export class ChannelSender extends Sender {
 
     if (!handler) {
       return console.warn(
-        `Received unexpected response for unawaited sequence number ${id}`,
+        `Received unexpected response for unawaited request ID ${id}`,
       );
     }
 
+    this.responseHandlerMap.delete(id);
     handler(result);
   }
 
   request<T>(endpoint: EndpointPayload): Promise<T> {
-    const requestSequenceNumber = this.sequenceNumber;
-    this.sequenceNumber++;
+    let requestId = 0;
+
+    // Find smallest unused request ID
+    while (this.responseHandlerMap.has(requestId)) {
+      requestId++;
+    }
 
     return new Promise((resolve) => {
-      this.responseHandlerMap.set(requestSequenceNumber, (result) => {
+      this.responseHandlerMap.set(requestId, (result) => {
         resolve(result as T);
       });
 
       this.channel.send({
-        id: requestSequenceNumber,
+        id: requestId,
         payload: endpoint,
       });
     });

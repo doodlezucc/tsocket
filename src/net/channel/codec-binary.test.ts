@@ -47,10 +47,12 @@ Deno.test("Socket with binary channel transport", async () => {
   let channelClientToServer: ControlledChannel<ArrayBuffer>;
   let channelServerToClient: ControlledChannel<ArrayBuffer>;
 
+  const codecFactory = codecBinary();
+
   const transportClientToServer: ChannelTransportFactory = {
     create: (indexedSchema) =>
       channelClientToServer = new ControlledChannel({
-        codec: codecBinary().create(indexedSchema),
+        codec: codecFactory.create(indexedSchema),
         onSend(outgoingMessage) {
           console.log("\n[CLIENT --> SERVER]:", outgoingMessage);
           channelServerToClient.simulateIncomingMessage(outgoingMessage);
@@ -60,7 +62,7 @@ Deno.test("Socket with binary channel transport", async () => {
   const transportServerToClient: ChannelTransportFactory = {
     create: (indexedSchema) =>
       channelServerToClient = new ControlledChannel({
-        codec: codecBinary().create(indexedSchema),
+        codec: codecFactory.create(indexedSchema),
         onSend(outgoingMessage) {
           console.log("\n[SERVER --> CLIENT]:", outgoingMessage);
           channelClientToServer.simulateIncomingMessage(outgoingMessage);

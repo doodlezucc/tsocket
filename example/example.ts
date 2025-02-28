@@ -30,16 +30,16 @@ const ServerSchema = schema({
     .returns("string"),
 });
 
-const socket = createSocket({
-  transport: transportWebSocket(new WebSocket("")),
+const clientSocket = createSocket({
+  transport: transportWebSocket(new WebSocket("http://localhost:8080/ws")),
   partnerProcessing: {
     schema: ServerSchema,
   },
 });
 
-socket.partner.chat.messages.get("0").delete();
+clientSocket.partner.chat.messages.get("0").delete();
 
-const response = await socket.partner.anotherThing({
+const response = await clientSocket.partner.anotherThing({
   with: [
     { name: "A name", description: "A description" },
   ],

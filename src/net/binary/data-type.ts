@@ -88,7 +88,7 @@ export type DataTypeCodec<T extends DataType = DataType> = BinaryCodec<
   Value<T>
 >;
 
-const CodecUint8: DataTypeCodec<"int"> = {
+export const CodecUint8: DataTypeCodec<"int"> = {
   write: (writer, value) => writer.uint8(value),
   read: (reader) => reader.uint8(),
 };
@@ -100,7 +100,7 @@ const CodecUint32: DataTypeCodec<"int"> = {
   write: (writer, value) => writer.uint32(value),
   read: (reader) => reader.uint32(),
 };
-const CodecUintVarying: DataTypeCodec<"int"> = {
+export const CodecUintVarying: DataTypeCodec<"int"> = {
   write: (writer, value) => writer.uintVarying(value),
   read: (reader) => reader.uintVarying(),
 };
