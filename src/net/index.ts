@@ -9,7 +9,9 @@ export type {
   DispatchMessage,
   Message,
   RequestMessage,
+  ResponseErrorMessage,
   ResponseMessage,
+  ResponseResultMessage,
 } from "./channel/message.ts";
 export type { ChannelReceiver } from "./channel/receiver.ts";
 export { ChannelSender } from "./channel/sender.ts";
@@ -24,6 +26,8 @@ export { createCaller } from "./caller.ts";
 export type { SchemaCaller, SendRequestFunction } from "./caller.ts";
 export { createParser } from "./parser.ts";
 export type { Parser } from "./parser.ts";
+export { indexSchema } from "./schema-indexing.ts";
+export type { IndexedSchema } from "./schema-indexing.ts";
 export { collection, endpoint, schema } from "./schema.ts";
 export type {
   Schema,
