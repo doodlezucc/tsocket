@@ -1,7 +1,7 @@
 import { createCaller, SchemaCaller } from "./caller.ts";
 import { ChannelReceiver } from "./channel/receiver.ts";
 import { ChannelSender } from "./channel/sender.ts";
-import { ChannelTransport } from "./channel/transport.ts";
+import { ChannelTransportFactory } from "./channel/transport.ts";
 import { Parser } from "./parser.ts";
 import { indexSchema } from "./schema-indexing.ts";
 import { Schema } from "./schema.ts";
@@ -39,7 +39,7 @@ interface HasRequestTransport {
 }
 
 interface HasChannelTransport {
-  transport: ChannelTransport;
+  transport: ChannelTransportFactory;
 }
 
 interface SocketWithPartner<TPartnerSchema extends Schema = Schema> {
@@ -106,7 +106,10 @@ function hasLocalProcessing(
 function createChannelReceiver(
   options: HasChannelTransport & HasLocalProcessing,
 ) {
-  return new ChannelReceiver(options.transport, options.localProcessing.parser);
+  return new ChannelReceiver(
+    options.transport.create(options.localProcessing.parser.indexedSchema),
+    options.localProcessing.parser,
+  );
 }
 
 function createRequestSocket<TPartnerSchema extends Schema>(
@@ -123,10 +126,11 @@ function createChannelSocket(
   options: HasChannelTransport & HasLocalOrPartnerProcessing,
 ) {
   if (hasPartnerProcessing(options)) {
-    const sender = new ChannelSender({
-      channel: options.transport,
-      indexedSchema: indexSchema(options.partnerProcessing.schema),
-    });
+    const channel = options.transport.create(
+      indexSchema(options.partnerProcessing.schema),
+    );
+
+    const sender = new ChannelSender({ channel: channel });
     const partnerCaller = sender.createCaller(options.partnerProcessing.schema);
 
     if (hasLocalProcessing(options)) {

@@ -4,9 +4,14 @@ import { MessageCodec } from "./codec.ts";
 import { Message } from "./message.ts";
 
 export interface ChannelTransport {
-  initialize?: (indexedSchema: IndexedSchema) => void;
   send(message: Message): void;
   subscribe(onReceive: (message: Message) => void): StreamSubscription;
+}
+
+export interface ChannelTransportFactory<
+  T extends ChannelTransport = ChannelTransport,
+> {
+  create(indexedSchema: IndexedSchema): T;
 }
 
 export interface EncodedChannel<TEncoding> {
@@ -18,10 +23,6 @@ export interface EncodedChannel<TEncoding> {
 
 export class EncodedChannelTransport<TEncoding> implements ChannelTransport {
   constructor(private readonly channel: EncodedChannel<TEncoding>) {}
-
-  initialize(indexedSchema: IndexedSchema): void {
-    this.channel.codec.initialize?.(indexedSchema);
-  }
 
   send(message: Message): void {
     this.channel.send(this.channel.codec.encode(message));
@@ -36,6 +37,8 @@ export class EncodedChannelTransport<TEncoding> implements ChannelTransport {
 
 export function transportCustomChannel<TEncoding>(
   options: EncodedChannel<TEncoding>,
-): EncodedChannelTransport<TEncoding> {
-  return new EncodedChannelTransport(options);
+): ChannelTransportFactory<EncodedChannelTransport<TEncoding>> {
+  return {
+    create: () => new EncodedChannelTransport(options),
+  };
 }

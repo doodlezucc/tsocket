@@ -2,9 +2,12 @@ import {
   codecBinary,
   PacketMessageCodec,
 } from "../net/channel/codec-binary.ts";
-import { MessageCodec } from "../net/channel/codec.ts";
+import { MessageCodec, MessageCodecFactory } from "../net/channel/codec.ts";
 import { Message } from "../net/channel/message.ts";
-import { ChannelTransport } from "../net/channel/transport.ts";
+import {
+  ChannelTransport,
+  ChannelTransportFactory,
+} from "../net/channel/transport.ts";
 import { StreamSubscription } from "../util.ts";
 
 type WebSocketEncoding = string | ArrayBufferLike | Blob | ArrayBufferView;
@@ -75,15 +78,21 @@ export class WebSocketChannel<TEncoding extends WebSocketEncoding>
 }
 
 interface WebSocketTransportOptions {
-  codec?: MessageCodec<WebSocketEncoding>;
+  codec?: MessageCodecFactory<WebSocketEncoding>;
 }
 
 export function transportWebSocket(
   webSocket: WebSocket,
   options?: WebSocketTransportOptions,
-) {
-  return new WebSocketChannel(
-    webSocket,
-    options?.codec ?? codecBinary(),
-  );
+): ChannelTransportFactory<WebSocketChannel<WebSocketEncoding>> {
+  return {
+    create(indexedSchema) {
+      const codecFactory = options?.codec ?? codecBinary();
+
+      return new WebSocketChannel(
+        webSocket,
+        codecFactory.create(indexedSchema),
+      );
+    },
+  };
 }

@@ -1,8 +1,6 @@
 import { assertEquals } from "@std/assert/equals";
 import { assertRejects } from "@std/assert/rejects";
 import { ControlledChannel, timeout } from "../helpers.test.ts";
-import { indexSchema } from "../schema-indexing.ts";
-import { endpoint } from "../schema.ts";
 import { ChannelSender } from "./sender.ts";
 
 type CreateMessageSuccess = { id: string };
@@ -12,9 +10,6 @@ Deno.test("Message sending over channel", async () => {
 
   const sender = new ChannelSender({
     channel: controlledChannel,
-    indexedSchema: indexSchema({
-      theSingleEndpoint: endpoint().accepts("string"),
-    }),
   });
 
   const responsePromise = sender.request<CreateMessageSuccess>({

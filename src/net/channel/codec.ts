@@ -2,13 +2,15 @@ import { IndexedSchema } from "../schema-indexing.ts";
 import { Message } from "./message.ts";
 
 export interface MessageCodec<T = unknown> {
-  initialize?: (indexedSchema: IndexedSchema) => void;
-
   encode(message: Message): T;
   decode(message: T): Message;
 }
 
-const jsonCodec: MessageCodec<string> = {
+export interface MessageCodecFactory<T = unknown> {
+  create(indexedSchema: IndexedSchema): MessageCodec<T>;
+}
+
+const JsonCodec: MessageCodec<string> = {
   encode(message: Message): string {
     return JSON.stringify(message);
   },
@@ -18,6 +20,6 @@ const jsonCodec: MessageCodec<string> = {
   },
 };
 
-export function codecJson() {
-  return jsonCodec;
+export function codecJson(): MessageCodecFactory<string> {
+  return { create: () => JsonCodec };
 }

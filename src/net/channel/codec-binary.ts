@@ -8,7 +8,7 @@ import {
 import { IndexedSchema } from "../schema-indexing.ts";
 import { IndexDataType } from "../schema.ts";
 import { EndpointPayload } from "../transport.ts";
-import { MessageCodec } from "./codec.ts";
+import { MessageCodec, MessageCodecFactory } from "./codec.ts";
 import { Message, RequestMessage, ResponseMessage } from "./message.ts";
 
 class EndpointPayloadCodec implements BinaryCodec<EndpointPayload> {
@@ -180,9 +180,9 @@ class StatefulMessageBinaryCodec implements BinaryCodec<Message> {
 }
 
 export class PacketMessageCodec implements MessageCodec<ArrayBuffer> {
-  private binaryCodec!: StatefulMessageBinaryCodec;
+  private readonly binaryCodec!: StatefulMessageBinaryCodec;
 
-  initialize(indexedSchema: IndexedSchema) {
+  constructor(indexedSchema: IndexedSchema) {
     this.binaryCodec = new StatefulMessageBinaryCodec(indexedSchema);
   }
 
@@ -198,6 +198,8 @@ export class PacketMessageCodec implements MessageCodec<ArrayBuffer> {
   }
 }
 
-export function codecBinary(): MessageCodec<ArrayBuffer> {
-  return new PacketMessageCodec();
+export function codecBinary(): MessageCodecFactory<ArrayBuffer> {
+  return {
+    create: (indexedSchema) => new PacketMessageCodec(indexedSchema),
+  };
 }

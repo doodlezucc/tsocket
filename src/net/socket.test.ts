@@ -1,5 +1,6 @@
 import { assertEquals } from "@std/assert/equals";
 import { assertSpyCall, assertSpyCalls, spy } from "@std/testing/mock";
+import { ChannelTransportFactory } from "./channel/transport.ts";
 import { ControlledChannel } from "./helpers.test.ts";
 import { createParser } from "./parser.ts";
 import { endpoint, schema } from "./schema.ts";
@@ -69,6 +70,13 @@ Deno.test("Socket over channel transport", async (t) => {
     channelServerToClient.simulateIncomingMessage(outgoingMessage)
   );
 
+  const transportServerToClient: ChannelTransportFactory = {
+    create: () => channelServerToClient,
+  };
+  const transportClientToServer: ChannelTransportFactory = {
+    create: () => channelClientToServer,
+  };
+
   await t.step("Onesided sockets", async () => {
     const createMessageSpy = spy(({ text }, { connectionId }) => {
       console.log(`Creating message "${text}" (by ${connectionId})`);
@@ -76,7 +84,7 @@ Deno.test("Socket over channel transport", async (t) => {
     });
 
     const serverSocket = createSocket({
-      transport: channelServerToClient,
+      transport: transportServerToClient,
       localProcessing: {
         parser: createParser(
           serverSchema,
@@ -89,7 +97,7 @@ Deno.test("Socket over channel transport", async (t) => {
     });
 
     const clientSocket = createSocket({
-      transport: channelClientToServer,
+      transport: transportClientToServer,
       partnerProcessing: {
         schema: serverSchema,
       },
@@ -120,7 +128,7 @@ Deno.test("Socket over channel transport", async (t) => {
     });
 
     const serverSocket = createSocket({
-      transport: channelServerToClient,
+      transport: transportServerToClient,
       localProcessing: {
         parser: createParser(
           serverSchema,
@@ -140,7 +148,7 @@ Deno.test("Socket over channel transport", async (t) => {
     });
 
     const clientSocket = createSocket({
-      transport: channelClientToServer,
+      transport: transportClientToServer,
       localProcessing: {
         parser: createParser(clientSchema, {
           onMessagePosted: onMessagePostedSpy,
