@@ -38,24 +38,43 @@ const textDecoder = new TextDecoder();
 
 const MaxPacketSize = 0xffffff; // 16 MiB (or 16.78 MB)
 
-class PacketWriterImpl implements PacketWriter {
-  private readonly buffer: ArrayBuffer;
-  private readonly view: DataView;
+class PacketWriterImplementation implements PacketWriter {
+  private buffer: ArrayBuffer;
+  private view: DataView;
 
   private bufferSize: number = 1024;
   private offset = 0;
 
   constructor() {
-    this.buffer = new ArrayBuffer(this.bufferSize, {
-      maxByteLength: MaxPacketSize,
-    });
+    this.buffer = new ArrayBuffer(this.bufferSize);
     this.view = new DataView(this.buffer);
+  }
+
+  private resizeBuffer() {
+    // Modern browsers also support the resizing of buffers since approximately March 2023,
+    // which would improve the performance of `resizeBuffer()`. For now, the legacy approach
+    // of copying a small buffer into a larger one is used.
+
+    // this.buffer.resize(this.bufferSize);
+
+    const previousBytes = new Uint8Array(this.buffer);
+    this.buffer = new ArrayBuffer(this.bufferSize);
+    this.view = new DataView(this.buffer);
+
+    const newBytes = new Uint8Array(this.buffer);
+    newBytes.set(previousBytes);
   }
 
   private allocate(bytes: number) {
     const requiredSize = this.offset + bytes;
 
     if (requiredSize > this.bufferSize) {
+      if (requiredSize > MaxPacketSize) {
+        throw new Error(
+          `Exceeding packet size limit of ${MaxPacketSize} bytes`,
+        );
+      }
+
       // Increase the buffer size until it can hold the new number of bytes.
       do {
         this.bufferSize *= 2;
@@ -63,7 +82,7 @@ class PacketWriterImpl implements PacketWriter {
 
       // The do-while loop ensures a minimum number of condition checks,
       // and the buffer gets resized exactly once whenever necessary.
-      this.buffer.resize(this.bufferSize);
+      this.resizeBuffer();
     }
   }
 
@@ -138,7 +157,7 @@ class PacketWriterImpl implements PacketWriter {
   }
 }
 
-class PacketReaderImpl implements PacketReader {
+class PacketReaderImplementation implements PacketReader {
   private offset = 0;
 
   constructor(private readonly view: DataView) {}
@@ -197,16 +216,16 @@ class PacketReaderImpl implements PacketReader {
 
 export function readPacket(packet: ArrayBuffer | DataView): PacketReader {
   if (packet instanceof ArrayBuffer) {
-    return new PacketReaderImpl(new DataView(packet));
+    return new PacketReaderImplementation(new DataView(packet));
   } else {
-    return new PacketReaderImpl(packet);
+    return new PacketReaderImplementation(packet);
   }
 }
 
 export function writePacket(
   write: (writer: PacketWriter) => void,
 ): ArrayBuffer {
-  const writer = new PacketWriterImpl();
+  const writer = new PacketWriterImplementation();
   write(writer);
   return writer.toBuffer();
 }
