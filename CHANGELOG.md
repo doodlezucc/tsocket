@@ -1,3 +1,7 @@
+### Preview 0.4.1 (2025-03-01)
+
+- Added `"buffer"` data type for sending and receiving raw `ArrayBuffer` objects.
+
 ### Preview 0.4.0 (2025-03-01)
 
 - Changed schemas to use custom data types instead of `zod` types.
