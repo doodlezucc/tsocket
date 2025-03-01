@@ -12,6 +12,7 @@ interface Types {
   double: number;
 
   string: string;
+  arrayBuffer: ArrayBuffer;
 }
 
 const SizeInBytes = {
@@ -141,18 +142,22 @@ class PacketWriterImplementation implements PacketWriter {
 
   string(value: string) {
     const stringBytes = textEncoder.encode(value);
-    const stringSize = stringBytes.length;
-    this.uintVarying(stringSize);
+    return this.arrayBuffer(stringBytes.buffer as ArrayBuffer);
+  }
 
-    this.allocate(stringSize);
+  arrayBuffer(value: ArrayBuffer) {
+    const size = value.byteLength;
+    this.uintVarying(size);
+
+    this.allocate(size);
     const bufferRegion = new Uint8Array(
-      this.view.buffer,
+      this.buffer,
       this.offset,
-      stringSize,
+      value.byteLength,
     );
-    bufferRegion.set(stringBytes);
 
-    this.offset += stringSize;
+    bufferRegion.set(new Uint8Array(value));
+    this.offset += value.byteLength;
     return this;
   }
 }
@@ -201,16 +206,16 @@ class PacketReaderImplementation implements PacketReader {
   }
 
   string() {
-    const stringLength = this.uintVarying();
-    const stringRegion = new Uint8Array(
-      this.view.buffer,
-      this.offset,
-      stringLength,
-    );
+    const bytes = this.arrayBuffer();
+    return textDecoder.decode(bytes);
+  }
 
-    const result = textDecoder.decode(stringRegion);
-    this.offset += stringLength;
-    return result;
+  arrayBuffer(): ArrayBuffer {
+    const size = this.uintVarying();
+    const result = this.view.buffer.slice(this.offset, this.offset + size);
+
+    this.offset += size;
+    return result as ArrayBuffer;
   }
 }
 

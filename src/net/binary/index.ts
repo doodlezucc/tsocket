@@ -6,7 +6,6 @@ export type {
   DataTypeCodec,
   EnumValue,
   ObjectValue,
-  PrimitiveDataType,
   Value,
 } from "./data-type.ts";
 export { readPacket, writePacket } from "./packet.ts";

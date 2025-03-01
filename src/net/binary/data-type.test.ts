@@ -75,6 +75,18 @@ Deno.test("String Codec", () => {
   );
 });
 
+Deno.test("Buffer Codec", () => {
+  const buffer = new ArrayBuffer(8);
+  new Int32Array(buffer)[0] = 123;
+  new Int32Array(buffer)[1] = -123;
+
+  const decoded = testCodecNoAssertEquals("buffer", buffer);
+
+  const decodedInt32View = new Int32Array(decoded);
+  assertEquals(decodedInt32View[0], 123);
+  assertEquals(decodedInt32View[1], -123);
+});
+
 Deno.test("Array Codec", () => {
   testCodec(array("double"), []);
   testCodec(array("string"), ["one string in this array"]);

@@ -1,7 +1,7 @@
 import { PacketReader, PacketWriter } from "./packet.ts";
 import { Limit as VaryingUintlimit } from "./uint-varying.ts";
 
-export type PrimitiveDataType = "boolean" | "int" | "double" | "string";
+type BasicDataType = "boolean" | "int" | "double" | "string" | "buffer";
 type ArrayDataType<T extends DataType> = [T];
 type ObjectDataType = {
   [key: string]: DataType;
@@ -24,7 +24,7 @@ type PartialDataType<T extends ObjectDataType = ObjectDataType> = {
 };
 
 type RequiredDataType =
-  | PrimitiveDataType
+  | BasicDataType
   | [DataType]
   | EnumDataType
   | PartialDataType
@@ -49,6 +49,7 @@ export type Value<T extends DataType> = T extends "boolean" ? boolean
   : T extends "int" ? number
   : T extends "double" ? number
   : T extends "string" ? string
+  : T extends "buffer" ? ArrayBuffer
   : T extends EnumDataType<infer TEnum> ? TEnum[keyof TEnum] // This shows up as the enum itself
   : T extends OptionalDataType<infer TSubType> ? (Value<TSubType> | undefined)
   : T extends PartialDataType<infer TObject> ? Partial<ObjectValue<TObject>>
@@ -120,6 +121,10 @@ const CodecDouble: DataTypeCodec<"double"> = {
 const CodecString: DataTypeCodec<"string"> = {
   write: (writer, value) => writer.string(value),
   read: (reader) => reader.string(),
+};
+const CodecArrayBuffer: DataTypeCodec<"buffer"> = {
+  write: (writer, value) => writer.arrayBuffer(value),
+  read: (reader) => reader.arrayBuffer(),
 };
 
 class CodecArray<E extends DataType> implements BinaryCodec<ArrayValue<E>> {
@@ -297,8 +302,10 @@ function uncheckedCreateCodecFor<T extends DataType>(type: T) {
         return CodecDouble;
       case "string":
         return CodecString;
+      case "buffer":
+        return CodecArrayBuffer;
       default:
-        throw new Error(`Invalid primitive type ${type}`);
+        throw new Error(`Invalid basic data type ${type}`);
     }
   } else if (Array.isArray(type)) {
     const elementType = type[0];
