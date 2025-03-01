@@ -1,6 +1,7 @@
 export type { StreamSubscription } from "../util.ts";
 
 export { array, object, oneOf, optional, partial } from "./binary/data-type.ts";
+export type { Value } from "./binary/data-type.ts";
 
 export { codecBinary, PacketMessageCodec } from "./channel/codec-binary.ts";
 export { codecJson } from "./channel/codec.ts";

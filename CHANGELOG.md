@@ -1,3 +1,8 @@
+### Preview 0.4.2 (2025-03-01)
+
+- Added `tsocket/binary` as an exported module.
+- Added `Value` type export.
+
 ### Preview 0.4.1 (2025-03-01)
 
 - Added `"buffer"` data type for sending and receiving raw `ArrayBuffer` objects.

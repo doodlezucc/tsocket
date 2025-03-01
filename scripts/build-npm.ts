@@ -12,6 +12,10 @@ await build({
       name: "./client",
       path: "./src/client/index.ts",
     },
+    {
+      name: "./binary",
+      path: "./src/net/binary/index.ts",
+    },
   ],
   outDir: "./npm",
   shims: {
