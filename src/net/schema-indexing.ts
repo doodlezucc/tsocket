@@ -156,7 +156,18 @@ class SchemaIndexer<T extends Schema> {
   }
 }
 
+const cacheOfIndexedSchemas = new Map<Schema, IndexedSchema>();
+
 export function indexSchema<T extends Schema>(schema: T): IndexedSchema<T> {
+  const cachedIndexedSchema = cacheOfIndexedSchemas.get(schema);
+
+  if (cachedIndexedSchema !== undefined) {
+    return cachedIndexedSchema;
+  }
+
   const indexer = new SchemaIndexer(schema);
-  return indexer.traverse();
+  const newIndexedSchema = indexer.traverse();
+
+  cacheOfIndexedSchemas.set(schema, newIndexedSchema);
+  return newIndexedSchema;
 }
