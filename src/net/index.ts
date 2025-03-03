@@ -5,7 +5,11 @@ export type { Value } from "./binary/data-type.ts";
 
 export { codecBinary, PacketMessageCodec } from "./channel/codec-binary.ts";
 export { codecJson } from "./channel/codec.ts";
-export type { MessageCodec } from "./channel/codec.ts";
+export type {
+  MessageCodec,
+  MessageCodecFactory,
+  SchemaFactoryInput,
+} from "./channel/codec.ts";
 export type {
   DispatchMessage,
   Message,
@@ -20,7 +24,11 @@ export {
   EncodedChannelTransport,
   transportCustomChannel,
 } from "./channel/transport.ts";
-export type { ChannelTransport, EncodedChannel } from "./channel/transport.ts";
+export type {
+  ChannelTransport,
+  ChannelTransportFactory,
+  EncodedChannel,
+} from "./channel/transport.ts";
 
 export type { SchemaAdapter } from "./adapter.ts";
 export { createCaller } from "./caller.ts";

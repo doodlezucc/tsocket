@@ -1,3 +1,9 @@
+### Preview 0.4.3 (2025-03-03)
+
+- Fixed binary encoded transport for sockets where the local schema and partner schema are different.
+- Changed `createParser(...)` signature to accept options as a second argument.
+- Added optional `logError` parameter to `createParser` function (defaults to logging with `console.error`).
+
 ### Preview 0.4.2 (2025-03-01)
 
 - Added `tsocket/binary` as an exported module.
