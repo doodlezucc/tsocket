@@ -35,45 +35,28 @@ class ParserImplementation<TSchema extends Schema, TContext>
   }
 }
 
-export function createParser<TSchema extends Schema, TContext>(
-  schema: TSchema,
-  adapter: SchemaAdapter<TSchema, TContext>,
-): Parser<TSchema, TContext>;
+interface ParserOptions<TSchema extends Schema, TContext> {
+  adapter: SchemaAdapter<TSchema, TContext>;
+  context?: TContext | (() => TContext);
+}
 
 export function createParser<TSchema extends Schema, TContext>(
   schema: TSchema,
-  context: TContext | (() => TContext),
-  adapter: SchemaAdapter<TSchema, TContext>,
-): Parser<TSchema, TContext>;
-
-export function createParser<TSchema extends Schema, TContext>(
-  schema: TSchema,
-  adapterOrContext:
-    | SchemaAdapter<TSchema, TContext>
-    | TContext
-    | (() => TContext),
-  adapter?: SchemaAdapter<TSchema, TContext>,
+  options: ParserOptions<TSchema, TContext>,
 ): Parser<TSchema, TContext> {
   const indexedSchema = indexSchema(schema);
 
-  if (adapter) {
-    if (typeof adapterOrContext === "function") {
-      return new ParserImplementation(
-        indexedSchema,
-        adapter,
-        adapterOrContext as (() => TContext),
-      );
+  const { adapter, context } = options;
+
+  let composeContext: (() => TContext) | undefined;
+
+  if (context) {
+    if (typeof context === "function") {
+      composeContext = context as (() => TContext);
     } else {
-      return new ParserImplementation(
-        indexedSchema,
-        adapter,
-        () => adapterOrContext as TContext,
-      );
+      composeContext = () => context;
     }
   }
 
-  return new ParserImplementation(
-    indexedSchema,
-    adapterOrContext as SchemaAdapter<TSchema, TContext>,
-  );
+  return new ParserImplementation(indexedSchema, adapter, composeContext);
 }

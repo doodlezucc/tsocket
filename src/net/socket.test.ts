@@ -27,11 +27,13 @@ const ClientSchema = schema({
 Deno.test("Socket over request transport", async () => {
   const parser = createParser(
     ServerSchema,
-    { connectionId: "connection-id" } as ServerAdapterContext,
     {
-      createMessage({ text }, { connectionId }) {
-        console.log(`Creating message "${text}" (by ${connectionId})`);
-        return "message-id";
+      context: { connectionId: "connection-id" } as ServerAdapterContext,
+      adapter: {
+        createMessage({ text }, { connectionId }) {
+          console.log(`Creating message "${text}" (by ${connectionId})`);
+          return "message-id";
+        },
       },
     },
   );
@@ -90,13 +92,12 @@ Deno.test("Socket over channel transport", async (t) => {
     const serverSocket = createSocket({
       transport: transportServerToClient,
       localProcessing: {
-        parser: createParser(
-          ServerSchema,
-          { connectionId: "connection-id" } as ServerAdapterContext,
-          {
+        parser: createParser(ServerSchema, {
+          context: { connectionId: "connection-id" } as ServerAdapterContext,
+          adapter: {
             createMessage: createMessageSpy,
           },
-        ),
+        }),
       },
     });
 
@@ -134,13 +135,12 @@ Deno.test("Socket over channel transport", async (t) => {
     const serverSocket = createSocket({
       transport: transportServerToClient,
       localProcessing: {
-        parser: createParser(
-          ServerSchema,
-          { connectionId: "connection-id" } as ServerAdapterContext,
-          {
+        parser: createParser(ServerSchema, {
+          context: { connectionId: "connection-id" } as ServerAdapterContext,
+          adapter: {
             createMessage: createMessageSpy,
           },
-        ),
+        }),
       },
       partnerProcessing: {
         schema: ClientSchema,
@@ -155,7 +155,9 @@ Deno.test("Socket over channel transport", async (t) => {
       transport: transportClientToServer,
       localProcessing: {
         parser: createParser(ClientSchema, {
-          onMessagePosted: onMessagePostedSpy,
+          adapter: {
+            onMessagePosted: onMessagePostedSpy,
+          },
         }),
       },
       partnerProcessing: {

@@ -93,7 +93,9 @@ Deno.test("Bidirectional binary channel transport", async () => {
     },
     localProcessing: {
       parser: createParser(PingSchema, {
-        ping: () => pingSpy(),
+        adapter: {
+          ping: () => pingSpy(),
+        },
       }),
     },
   });
@@ -132,31 +134,34 @@ Deno.test("Bidirectional binary channel transport", async () => {
     },
     localProcessing: {
       parser: createParser(ServerSchema, {
-        community: {
-          users: {
-            get: (userId) => ({
-              updateNickname: (nickname) => updateNicknameSpy(userId, nickname),
+        adapter: {
+          community: {
+            users: {
+              get: (userId) => ({
+                updateNickname: (nickname) =>
+                  updateNicknameSpy(userId, nickname),
 
-              posts: {
-                get: (postId) => ({
-                  update: ({ content }) =>
-                    updatePostSpy(userId, postId, content),
+                posts: {
+                  get: (postId) => ({
+                    update: ({ content }) =>
+                      updatePostSpy(userId, postId, content),
 
-                  delete: () => deletePostSpy(userId, postId),
-                }),
-              },
-            }),
+                    delete: () => deletePostSpy(userId, postId),
+                  }),
+                },
+              }),
+            },
           },
-        },
-        sandbox: {
-          increaseCounter: () => increaseCounterSpy(),
-          areas: {
-            get: (areaId) => ({
-              setStatus: (status) => setAreaStatusSpy(areaId, status),
-              throwAnError: () => {
-                throw `Error thrown from area ${areaId}`;
-              },
-            }),
+          sandbox: {
+            increaseCounter: () => increaseCounterSpy(),
+            areas: {
+              get: (areaId) => ({
+                setStatus: (status) => setAreaStatusSpy(areaId, status),
+                throwAnError: () => {
+                  throw `Error thrown from area ${areaId}`;
+                },
+              }),
+            },
           },
         },
       }),
@@ -262,7 +267,9 @@ Deno.test("One-sided binary channel transport", async () => {
     transport: transportServerToClient,
     localProcessing: {
       parser: createParser(PingSchema, {
-        ping: () => pingSpy(),
+        adapter: {
+          ping: () => pingSpy(),
+        },
       }),
     },
   });

@@ -48,7 +48,7 @@ Deno.test("Request parsing", () => {
     },
   };
 
-  const parser = createParser(TestSchema, adapter);
+  const parser = createParser(TestSchema, { adapter });
   using createMessageStub = stub(adapter.chat, "create");
 
   const adapterContext: AdapterContext = {
