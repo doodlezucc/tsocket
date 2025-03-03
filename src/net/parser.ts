@@ -6,18 +6,26 @@ import { EndpointPayload } from "./transport.ts";
 export interface Parser<TSchema extends Schema, TContext> {
   readonly indexedSchema: IndexedSchema<TSchema>;
   readonly adapter: SchemaAdapter<TSchema, TContext>;
-  readonly composeContext?: () => TContext;
 
   callEndpoint(payload: EndpointPayload, context?: TContext): unknown;
 }
 
 class ParserImplementation<TSchema extends Schema, TContext>
   implements Parser<TSchema, TContext> {
+  private readonly logError: (err: unknown) => void;
+
   constructor(
     readonly indexedSchema: IndexedSchema<TSchema>,
     readonly adapter: SchemaAdapter<TSchema, TContext>,
-    readonly composeContext?: () => TContext,
-  ) {}
+    private readonly composeContext?: () => TContext,
+    logError?: (err: unknown) => void,
+  ) {
+    if (logError) {
+      this.logError = logError;
+    } else {
+      this.logError = (err) => console.error(err);
+    }
+  }
 
   callEndpoint(payload: EndpointPayload, context?: TContext) {
     const { endpointIndex, collectionIndices, params } = payload;
@@ -27,10 +35,15 @@ class ParserImplementation<TSchema extends Schema, TContext>
     const endpoint = this.indexedSchema.indexedAdaptedEndpoints[endpointIndex]
       .resolveInAdapter(this.adapter, collectionIndices);
 
-    if (params !== undefined) {
-      return endpoint(params, adapterContext);
-    } else {
-      return endpoint(adapterContext);
+    try {
+      if (params !== undefined) {
+        return endpoint(params, adapterContext);
+      } else {
+        return endpoint(adapterContext);
+      }
+    } catch (err) {
+      this.logError?.(err);
+      throw err;
     }
   }
 }
@@ -38,6 +51,14 @@ class ParserImplementation<TSchema extends Schema, TContext>
 interface ParserOptions<TSchema extends Schema, TContext> {
   adapter: SchemaAdapter<TSchema, TContext>;
   context?: TContext | (() => TContext);
+
+  /**
+   * A function which is called whenever an error is thrown by the underlying
+   * adapter. Pass an empty function `() => {}` to disable error logging.
+   *
+   * @default (err) => console.error(err)
+   */
+  logError?: (err: unknown) => void;
 }
 
 export function createParser<TSchema extends Schema, TContext>(
@@ -46,7 +67,7 @@ export function createParser<TSchema extends Schema, TContext>(
 ): Parser<TSchema, TContext> {
   const indexedSchema = indexSchema(schema);
 
-  const { adapter, context } = options;
+  const { adapter, context, logError } = options;
 
   let composeContext: (() => TContext) | undefined;
 
@@ -58,5 +79,10 @@ export function createParser<TSchema extends Schema, TContext>(
     }
   }
 
-  return new ParserImplementation(indexedSchema, adapter, composeContext);
+  return new ParserImplementation(
+    indexedSchema,
+    adapter,
+    composeContext,
+    logError,
+  );
 }

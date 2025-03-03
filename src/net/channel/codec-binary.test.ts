@@ -158,7 +158,7 @@ Deno.test("Bidirectional binary channel transport", async () => {
               get: (areaId) => ({
                 setStatus: (status) => setAreaStatusSpy(areaId, status),
                 throwAnError: () => {
-                  throw `Error thrown from area ${areaId}`;
+                  throw new Error(`Error thrown from area ${areaId}`);
                 },
               }),
             },
@@ -277,6 +277,9 @@ Deno.test("One-sided binary channel transport", async () => {
   const pingResult = await clientSocket.partner.ping();
   assertLessOrEqual(pingResult, Date.now());
   assertSpyCall(pingSpy, 0, { args: [] });
+
+  // Wait at least 1ms before triggering the next ping
+  await new Promise((resolve) => setTimeout(resolve, 1));
 
   const secondPingResult = await clientSocket.partner.ping();
   assertGreater(secondPingResult, pingResult);
