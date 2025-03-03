@@ -1,3 +1,7 @@
+### Preview 0.4.4 (2025-03-03)
+
+- Fixed `tsocket/client` websocket transport implementation for (default) binary message codec.
+
 ### Preview 0.4.3 (2025-03-03)
 
 - Fixed binary encoded transport for sockets where the local schema and partner schema are different.
