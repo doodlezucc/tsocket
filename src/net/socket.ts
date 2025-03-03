@@ -103,15 +103,6 @@ function hasLocalProcessing(
   return "localProcessing" in options;
 }
 
-function createChannelReceiver(
-  options: HasChannelTransport & HasLocalProcessing,
-) {
-  return new ChannelReceiver(
-    options.transport.create(options.localProcessing.parser.indexedSchema),
-    options.localProcessing.parser,
-  );
-}
-
 function createRequestSocket<TPartnerSchema extends Schema>(
   options: HasRequestTransport & HasPartnerProcessing<TPartnerSchema>,
 ): SocketWithPartner<TPartnerSchema> {
@@ -126,16 +117,22 @@ function createChannelSocket(
   options: HasChannelTransport & HasLocalOrPartnerProcessing,
 ) {
   if (hasPartnerProcessing(options)) {
-    const channel = options.transport.create(
-      indexSchema(options.partnerProcessing.schema),
-    );
+    const channel = options.transport.create({
+      partnerSchema: indexSchema(options.partnerProcessing.schema),
+      localSchema: hasLocalProcessing(options)
+        ? options.localProcessing.parser.indexedSchema
+        : undefined,
+    });
 
     const sender = new ChannelSender({ channel: channel });
     const partnerCaller = sender.createCaller(options.partnerProcessing.schema);
 
     if (hasLocalProcessing(options)) {
       // Channel transport with LOCAL and PARTNER processing
-      const receiver = createChannelReceiver(options);
+      const receiver = new ChannelReceiver(
+        channel,
+        options.localProcessing.parser,
+      );
       return {
         partner: partnerCaller,
         dispose() {
@@ -154,7 +151,12 @@ function createChannelSocket(
     }
   } else {
     // Channel transport with only LOCAL processing
-    const receiver = createChannelReceiver(options);
+    const receiver = new ChannelReceiver(
+      options.transport.create({
+        localSchema: options.localProcessing.parser.indexedSchema,
+      }),
+      options.localProcessing.parser,
+    );
     return {
       dispose() {
         receiver.dispose();

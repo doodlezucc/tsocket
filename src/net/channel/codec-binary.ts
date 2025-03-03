@@ -78,19 +78,34 @@ enum MessageType {
 const CodecMessageType = createCodecFor(oneOf(MessageType));
 
 class StatefulMessageBinaryCodec implements BinaryCodec<Message> {
-  private readonly endpointPayloadCodec: EndpointPayloadCodec;
+  private readonly partnerEndpointCodec?: EndpointPayloadCodec;
+  private readonly localEndpointCodec?: EndpointPayloadCodec;
+
   private readonly outgoingRequestResultCodecs = new Map<number, BinaryCodec>();
   private readonly incomingRequestResultCodecs = new Map<number, BinaryCodec>();
 
   constructor(
-    readonly indexedSchema: IndexedSchema,
     readonly requestIdCodec: DataTypeCodec<"int">,
+    readonly partnerSchema?: IndexedSchema,
+    readonly localSchema?: IndexedSchema,
   ) {
-    this.endpointPayloadCodec = new EndpointPayloadCodec(indexedSchema);
+    if (partnerSchema) {
+      this.partnerEndpointCodec = new EndpointPayloadCodec(partnerSchema);
+    }
+
+    if (localSchema) {
+      this.localEndpointCodec = new EndpointPayloadCodec(localSchema);
+    }
   }
 
-  private getEndpointResultCodec(endpointIndex: number) {
-    const indexedEndpoint = this.indexedSchema.indexedEndpoints[endpointIndex];
+  private getPartnerEndpointResult(endpointIndex: number) {
+    const indexedEndpoint = this.partnerSchema!.indexedEndpoints[endpointIndex];
+
+    return indexedEndpoint.resultCodec!;
+  }
+
+  private getLocalEndpointResult(endpointIndex: number) {
+    const indexedEndpoint = this.localSchema!.indexedEndpoints[endpointIndex];
 
     return indexedEndpoint.resultCodec!;
   }
@@ -113,13 +128,13 @@ class StatefulMessageBinaryCodec implements BinaryCodec<Message> {
   private writeRequestBody(writer: PacketWriter, message: RequestMessage) {
     const { id: requestId, payload } = message;
 
-    const resultCodec = this.getEndpointResultCodec(payload.endpointIndex);
+    const resultCodec = this.getPartnerEndpointResult(payload.endpointIndex);
 
-    // Register the endpoint result's codec for use in `readResponseBody(...)`
+    // Register the endpoint result's codec for use in `readResponse...Body(...)`
     this.outgoingRequestResultCodecs.set(requestId, resultCodec);
 
     this.requestIdCodec.write(writer, requestId);
-    this.endpointPayloadCodec.write(writer, payload);
+    this.partnerEndpointCodec!.write(writer, payload);
   }
 
   private readResponseResultBody(reader: PacketReader): ResponseResultMessage {
@@ -145,9 +160,9 @@ class StatefulMessageBinaryCodec implements BinaryCodec<Message> {
 
   private readRequestBody(reader: PacketReader): RequestMessage {
     const requestId = this.requestIdCodec.read(reader);
-    const payload = this.endpointPayloadCodec.read(reader);
+    const payload = this.localEndpointCodec!.read(reader);
 
-    const resultCodec = this.getEndpointResultCodec(payload.endpointIndex);
+    const resultCodec = this.getLocalEndpointResult(payload.endpointIndex);
 
     // Register the endpoint result's codec for use in `writeResponseBody(...)`
     this.incomingRequestResultCodecs.set(requestId, resultCodec);
@@ -193,7 +208,7 @@ class StatefulMessageBinaryCodec implements BinaryCodec<Message> {
       } else {
         CodecMessageType.write(writer, MessageType.Dispatch);
 
-        this.endpointPayloadCodec.write(writer, message.payload);
+        this.partnerEndpointCodec!.write(writer, message.payload);
       }
     } else {
       if ("result" in message) {
@@ -212,7 +227,7 @@ class StatefulMessageBinaryCodec implements BinaryCodec<Message> {
     const messageType = CodecMessageType.read(reader);
     switch (messageType) {
       case MessageType.Dispatch:
-        return { payload: this.endpointPayloadCodec.read(reader) };
+        return { payload: this.localEndpointCodec!.read(reader) };
       case MessageType.Request:
         return this.readRequestBody(reader);
       case MessageType.Response:
@@ -224,7 +239,8 @@ class StatefulMessageBinaryCodec implements BinaryCodec<Message> {
 }
 
 interface PacketMessageCodecOptions {
-  indexedSchema: IndexedSchema;
+  partnerSchema?: IndexedSchema;
+  localSchema?: IndexedSchema;
   requestIdCodec: DataTypeCodec<"int">;
 }
 
@@ -233,8 +249,9 @@ export class PacketMessageCodec implements MessageCodec<ArrayBuffer> {
 
   constructor(options: PacketMessageCodecOptions) {
     this.binaryCodec = new StatefulMessageBinaryCodec(
-      options.indexedSchema,
       options.requestIdCodec,
+      options.partnerSchema,
+      options.localSchema,
     );
   }
 
@@ -271,7 +288,7 @@ export function codecBinary(
     : CodecUint8;
 
   return {
-    create: (indexedSchema) =>
-      new PacketMessageCodec({ indexedSchema, requestIdCodec }),
+    create: ({ partnerSchema, localSchema }) =>
+      new PacketMessageCodec({ partnerSchema, localSchema, requestIdCodec }),
   };
 }

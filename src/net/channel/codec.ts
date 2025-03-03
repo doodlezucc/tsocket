@@ -6,8 +6,13 @@ export interface MessageCodec<T = unknown> {
   decode(message: T): Message;
 }
 
+export interface SchemaFactoryInput {
+  partnerSchema?: IndexedSchema;
+  localSchema?: IndexedSchema;
+}
+
 export interface MessageCodecFactory<T = unknown> {
-  create(indexedSchema: IndexedSchema): MessageCodec<T>;
+  create(schemas: SchemaFactoryInput): MessageCodec<T>;
 }
 
 const JsonCodec: MessageCodec<string> = {

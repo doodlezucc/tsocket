@@ -1,6 +1,9 @@
 import { StreamSubscription } from "../../util.ts";
-import { IndexedSchema } from "../schema-indexing.ts";
-import { MessageCodec, MessageCodecFactory } from "./codec.ts";
+import {
+  MessageCodec,
+  MessageCodecFactory,
+  SchemaFactoryInput,
+} from "./codec.ts";
 import { Message } from "./message.ts";
 
 export interface ChannelTransport {
@@ -11,7 +14,7 @@ export interface ChannelTransport {
 export interface ChannelTransportFactory<
   T extends ChannelTransport = ChannelTransport,
 > {
-  create(indexedSchema: IndexedSchema): T;
+  create(input: SchemaFactoryInput): T;
 }
 
 export interface EncodedChannel<TEncoding> {

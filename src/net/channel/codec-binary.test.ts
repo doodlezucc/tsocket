@@ -1,4 +1,9 @@
-import { assertEquals, assertRejects } from "@std/assert";
+import {
+  assertEquals,
+  assertGreater,
+  assertLessOrEqual,
+  assertRejects,
+} from "@std/assert";
 import { assertSpyCall, spy } from "@std/testing/mock";
 import { oneOf } from "../binary/data-type.ts";
 import { ControlledChannel } from "../helpers.test.ts";
@@ -44,7 +49,11 @@ const ServerSchema = schema({
   },
 });
 
-Deno.test("Socket with binary channel transport", async () => {
+const PingSchema = schema({
+  ping: endpoint().returns("int"),
+});
+
+Deno.test("Bidirectional binary channel transport", async () => {
   // Setup bidirectional communication between two sockets with binary transport
   let channelClientToServer: ControlledChannel<ArrayBuffer>;
   let channelServerToClient: ControlledChannel<ArrayBuffer>;
@@ -52,9 +61,9 @@ Deno.test("Socket with binary channel transport", async () => {
   const codecFactory = codecBinary();
 
   const transportClientToServer: ChannelTransportFactory = {
-    create: (indexedSchema) =>
+    create: (schemas) =>
       channelClientToServer = new ControlledChannel({
-        codec: codecFactory.create(indexedSchema),
+        codec: codecFactory.create(schemas),
         onSend(outgoingMessage) {
           console.log("\n[CLIENT --> SERVER]:", outgoingMessage);
           channelServerToClient.simulateIncomingMessage(outgoingMessage);
@@ -62,9 +71,9 @@ Deno.test("Socket with binary channel transport", async () => {
       }),
   };
   const transportServerToClient: ChannelTransportFactory = {
-    create: (indexedSchema) =>
+    create: (schemas) =>
       channelServerToClient = new ControlledChannel({
-        codec: codecFactory.create(indexedSchema),
+        codec: codecFactory.create(schemas),
         onSend(outgoingMessage) {
           console.log("\n[SERVER --> CLIENT]:", outgoingMessage);
           channelClientToServer.simulateIncomingMessage(outgoingMessage);
@@ -72,10 +81,20 @@ Deno.test("Socket with binary channel transport", async () => {
       }),
   };
 
+  // Define the client's schema adapter with spy functions
+  const pingSpy = spy(() => {
+    console.log("Processing ping command client-side");
+    return Date.now();
+  });
   const clientSocket = createSocket({
     transport: transportClientToServer,
     partnerProcessing: {
       schema: ServerSchema,
+    },
+    localProcessing: {
+      parser: createParser(PingSchema, {
+        ping: () => pingSpy(),
+      }),
     },
   });
 
@@ -108,6 +127,9 @@ Deno.test("Socket with binary channel transport", async () => {
 
   const serverSocket = createSocket({
     transport: transportServerToClient,
+    partnerProcessing: {
+      schema: PingSchema,
+    },
     localProcessing: {
       parser: createParser(ServerSchema, {
         community: {
@@ -140,6 +162,10 @@ Deno.test("Socket with binary channel transport", async () => {
       }),
     },
   });
+
+  const pingResult = await serverSocket.partner.ping();
+  assertLessOrEqual(pingResult, Date.now());
+  assertSpyCall(pingSpy, 0, { args: [] });
 
   clientSocket.partner.sandbox.increaseCounter();
   assertSpyCall(increaseCounterSpy, 0, { args: [] });
@@ -187,6 +213,67 @@ Deno.test("Socket with binary channel transport", async () => {
     processedAreaId: 12345678,
     status: AreaStatus.Unvisited,
   });
+
+  clientSocket.dispose();
+  serverSocket.dispose();
+});
+
+Deno.test("One-sided binary channel transport", async () => {
+  // Setup bidirectional communication between two sockets with binary transport
+  let channelClientToServer: ControlledChannel<ArrayBuffer>;
+  let channelServerToClient: ControlledChannel<ArrayBuffer>;
+
+  const codecFactory = codecBinary();
+
+  const transportClientToServer: ChannelTransportFactory = {
+    create: (schemas) =>
+      channelClientToServer = new ControlledChannel({
+        codec: codecFactory.create(schemas),
+        onSend(outgoingMessage) {
+          console.log("\n[CLIENT --> SERVER]:", outgoingMessage);
+          channelServerToClient.simulateIncomingMessage(outgoingMessage);
+        },
+      }),
+  };
+  const transportServerToClient: ChannelTransportFactory = {
+    create: (schemas) =>
+      channelServerToClient = new ControlledChannel({
+        codec: codecFactory.create(schemas),
+        onSend(outgoingMessage) {
+          console.log("\n[SERVER --> CLIENT]:", outgoingMessage);
+          channelClientToServer.simulateIncomingMessage(outgoingMessage);
+        },
+      }),
+  };
+
+  const clientSocket = createSocket({
+    transport: transportClientToServer,
+    partnerProcessing: {
+      schema: PingSchema,
+    },
+  });
+
+  const pingSpy = spy(() => {
+    console.log("Processing ping command server-side");
+    return Date.now();
+  });
+
+  const serverSocket = createSocket({
+    transport: transportServerToClient,
+    localProcessing: {
+      parser: createParser(PingSchema, {
+        ping: () => pingSpy(),
+      }),
+    },
+  });
+
+  const pingResult = await clientSocket.partner.ping();
+  assertLessOrEqual(pingResult, Date.now());
+  assertSpyCall(pingSpy, 0, { args: [] });
+
+  const secondPingResult = await clientSocket.partner.ping();
+  assertGreater(secondPingResult, pingResult);
+  assertSpyCall(pingSpy, 1, { args: [] });
 
   clientSocket.dispose();
   serverSocket.dispose();

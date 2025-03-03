@@ -42,9 +42,11 @@ export class ControlledChannel<T = Message> implements ChannelTransport {
   }
 
   simulateIncomingMessage(data: T) {
+    const decodedMessage = this.codec.decode(data);
+
     for (const onReceive of this.responseListeners) {
       try {
-        onReceive(this.codec.decode(data));
+        onReceive(decodedMessage);
       } catch (err) {
         console.warn(err);
       }
