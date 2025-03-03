@@ -12,10 +12,14 @@ import { StreamSubscription } from "../util.ts";
 
 type WebSocketEncoding = string | ArrayBufferLike | Blob | ArrayBufferView;
 
+type MessageListener = (message: Message) => void;
+
 export class WebSocketChannel<TEncoding extends WebSocketEncoding>
   implements ChannelTransport {
   private outgoingQueue: TEncoding[] = [];
   private isOpen: boolean;
+
+  private listeners: MessageListener[] = [];
 
   constructor(
     readonly socket: WebSocket,
@@ -40,6 +44,8 @@ export class WebSocketChannel<TEncoding extends WebSocketEncoding>
     socket.addEventListener("close", () => {
       this.isOpen = false;
     });
+
+    socket.addEventListener("message", (ev) => this.onMessage(ev));
   }
 
   private onOpen() {
@@ -49,6 +55,19 @@ export class WebSocketChannel<TEncoding extends WebSocketEncoding>
 
     this.outgoingQueue = [];
     this.isOpen = true;
+  }
+
+  private onMessage(ev: MessageEvent) {
+    const rawData = ev.data as TEncoding;
+    const decodedMessage = this.codec.decode(rawData);
+
+    for (const onReceive of this.listeners) {
+      try {
+        onReceive(decodedMessage);
+      } catch (err) {
+        console.warn(err);
+      }
+    }
   }
 
   send(message: Message) {
@@ -62,17 +81,12 @@ export class WebSocketChannel<TEncoding extends WebSocketEncoding>
   }
 
   subscribe(onReceive: (message: Message) => void): StreamSubscription {
-    const listener = (ev: MessageEvent) => {
-      const rawData = ev.data as TEncoding;
-      const message = this.codec.decode(rawData);
-
-      onReceive(message);
-    };
-
-    this.socket.addEventListener("message", listener);
+    this.listeners.push(onReceive);
 
     return {
-      unsubscribe: () => this.socket.removeEventListener("message", listener),
+      unsubscribe: () =>
+        this.listeners = this.listeners
+          .filter((anyListener) => anyListener !== onReceive),
     };
   }
 }
