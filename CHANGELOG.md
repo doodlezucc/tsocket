@@ -1,3 +1,8 @@
+### Preview 0.4.5 (2025-03-06)
+
+- Added `DataTypeOf<T>` utility type to `tsocket/binary`.
+- Added all `DataType` alternatives as exported types of `tsocket/binary`.
+
 ### Preview 0.4.4 (2025-03-03)
 
 - Fixed `tsocket/client` websocket transport implementation for (default) binary message codec.
