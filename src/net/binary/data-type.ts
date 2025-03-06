@@ -1,9 +1,9 @@
 import { PacketReader, PacketWriter } from "./packet.ts";
 import { Limit as VaryingUintlimit } from "./uint-varying.ts";
 
-type BasicDataType = "boolean" | "int" | "double" | "string" | "buffer";
-type ArrayDataType<T extends DataType> = [T];
-type ObjectDataType = {
+export type BasicDataType = "boolean" | "int" | "double" | "string" | "buffer";
+export type ArrayDataType<T extends DataType> = [T];
+export type ObjectDataType = {
   [key: string]: DataType;
 };
 
@@ -11,19 +11,19 @@ type EnumLike = {
   [key: string]: string | number;
 };
 
-type EnumDataType<T extends EnumLike = EnumLike> = {
+export type EnumDataType<T extends EnumLike = EnumLike> = {
   __enum: T;
 };
 
-type OptionalDataType<T extends RequiredDataType = RequiredDataType> = {
+export type OptionalDataType<T extends RequiredDataType = RequiredDataType> = {
   __optional: T;
 };
 
-type PartialDataType<T extends ObjectDataType = ObjectDataType> = {
+export type PartialDataType<T extends ObjectDataType = ObjectDataType> = {
   __partial: T;
 };
 
-type RequiredDataType =
+export type RequiredDataType =
   | BasicDataType
   | [DataType]
   | EnumDataType
@@ -56,6 +56,17 @@ export type Value<T extends DataType> = T extends "boolean" ? boolean
   : T extends ArrayDataType<infer E> ? ArrayValue<E>
   : T extends ObjectDataType ? ObjectValue<T>
   : never;
+
+export type DataTypeOf<T> = T extends boolean ? "boolean"
+  : T extends number ? (("int" | "double") | EnumDataType)
+  : T extends string ? ("string" | EnumDataType)
+  : T extends ArrayBuffer ? "buffer"
+  : T extends Array<infer E> ? ArrayDataType<DataTypeOf<E>>
+  : {
+    [K in keyof T]-?: undefined extends T[K]
+      ? OptionalDataType<Exclude<DataTypeOf<T[K]>, undefined>>
+      : DataTypeOf<T[K]>;
+  };
 
 export function oneOf<T extends EnumLike>(type: T): EnumDataType<T> {
   return { __enum: type };
